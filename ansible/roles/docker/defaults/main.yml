@@ -1,4 +1,15 @@
 ---
+# Master switch, same detect-then-manage pattern as nvidia_driver_manage. If false,
+# this role only detects the current Docker engine / toolkit / SELinux state and
+# fails loudly (with instructions) instead of installing or reconfiguring anything.
+# See docs/host-safety-model.md.
+docker_manage: false
+
+# Separate switch for the SELinux `container_use_devices` boolean, since flipping a
+# security-relevant setting is a distinct decision from installing packages — a
+# customer may allow package installs but want to review SELinux changes themselves.
+selinux_manage: false
+
 docker_ce_repo_url: "https://download.docker.com/linux/rhel/docker-ce.repo"
 nvidia_container_toolkit_repo_url: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
 

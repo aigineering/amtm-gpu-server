@@ -1,11 +1,15 @@
 ---
-# Customer server: may already have a driver installed outside of Ansible.
-# Keep this false (detect-only) until `nvidia_driver_min_version` below has been
-# confirmed against the real `nvidia-smi` output on this host. See
-# docs/nvidia-driver-management.md before flipping this to true.
+# Customer server: may already have a driver, Docker, firewalld config, and SELinux
+# policy in place from before Ansible ever touched it. Every *_manage flag below
+# defaults to false (detect-and-report only) until confirmed against the real host.
+# See docs/host-safety-model.md before flipping any of these to true.
 nvidia_driver_manage: false
 nvidia_driver_min_version: "CHANGEME"       # fill in from `nvidia-smi` on the real host
 nvidia_driver_target_version: "550"
+
+docker_manage: false      # confirm existing Docker/toolkit state before enabling
+firewalld_manage: false   # confirm firewalld is actually the host's firewall mechanism
+selinux_manage: false     # confirm with the server owner before flipping SELinux booleans
 
 vllm_deploy_dir: /opt/vllm
 vllm_hf_token: "CHANGEME"  # override via ansible-vault, never commit a real token

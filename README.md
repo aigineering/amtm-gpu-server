@@ -12,13 +12,19 @@ model/GPU-split combinations on the same hardware.
 
 ## Why Ansible
 
+- **Agentless**: every run connects over plain SSH from your machine (or CI), applies
+  changes, and disconnects — nothing persistent is installed on the target to make
+  this work.
 - **Repeatable**: stand up the same stack on a clean AWS EC2 box (g6e/L40S family) for
   testing, then re-apply the identical playbook to the customer's existing RHEL server.
-- **Safe on pre-provisioned servers**: the customer's server may already have NVIDIA
-  drivers installed by someone else. The `nvidia_driver` role detects what's present
-  before touching anything — see [docs/nvidia-driver-management.md](docs/nvidia-driver-management.md).
+- **Safe on pre-provisioned servers**: the customer's server may already have an NVIDIA
+  driver, Docker, firewalld config, or SELinux policy in place. Every one of those
+  areas is detected before anything is touched — see
+  [docs/host-safety-model.md](docs/host-safety-model.md).
 - **Configuration as data**: model IDs, GPU memory fractions, ports, and vLLM CLI flags
   are all Ansible variables, not hardcoded — see [docs/vllm-configuration.md](docs/vllm-configuration.md).
+
+Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 
 ## Repo layout
 
@@ -26,7 +32,9 @@ model/GPU-split combinations on the same hardware.
 .
 ├── AGENTS.md                  # instructions for AI coding agents working in this repo
 ├── docs/
+│   ├── executive-overview.md  # non-technical summary, with diagrams
 │   ├── architecture.md        # topology, GPU split, compose design
+│   ├── host-safety-model.md   # the detect-then-manage pattern used everywhere
 │   ├── nvidia-driver-management.md
 │   ├── vllm-configuration.md
 │   └── runbook.md             # step-by-step operational procedures

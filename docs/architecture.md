@@ -41,16 +41,22 @@ variable changes and a `docker compose up -d` away, no hardware reconfiguration.
 
 ## Layers Ansible manages
 
-1. **OS baseline** (`common` role) — packages, kernel headers, basic hardening checks
-   needed before driver/Docker installation.
+1. **OS baseline** (`common` role) — packages, kernel headers, and firewalld (detected
+   first; only installed/enabled if not already active and `firewalld_manage: true`).
 2. **NVIDIA driver** (`nvidia_driver` role) — detected first, installed/upgraded only if
-   missing or below the pinned minimum version. See
-   [nvidia-driver-management.md](nvidia-driver-management.md).
-3. **Container runtime** (`docker` role) — Docker CE, the Compose plugin, and
-   `nvidia-container-toolkit` so containers can request `--gpus`.
-4. **vLLM services** (`vllm` role) — renders `docker-compose.yml` from Ansible
-   variables and brings the two services up. See
-   [vllm-configuration.md](vllm-configuration.md).
+   missing or below the pinned minimum version, and only when `nvidia_driver_manage`
+   is true. See [nvidia-driver-management.md](nvidia-driver-management.md).
+3. **Container runtime** (`docker` role) — Docker CE, the Compose plugin,
+   `nvidia-container-toolkit`, and the SELinux boolean GPU containers need under
+   Enforcing mode. Each piece is detected first and only changed when `docker_manage`
+   / `selinux_manage` is true.
+4. **vLLM services** (`vllm` role) — checks existing GPU memory/compute usage first
+   (read-only), renders `docker-compose.yml` from Ansible variables, and brings the two
+   services up. See [vllm-configuration.md](vllm-configuration.md).
+
+Every gated step in 1–3 follows the same detect-then-manage pattern — see
+[host-safety-model.md](host-safety-model.md) for the general rationale instead of
+repeating it per layer.
 
 ## Two environments, one playbook
 

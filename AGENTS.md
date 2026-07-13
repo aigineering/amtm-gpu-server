@@ -9,13 +9,22 @@ against the `customer` inventory as production deploys, not local dev commands.
 
 - **Never run playbooks against the `customer` inventory without explicit user
   confirmation for that specific run.** Running against `aws-test` for iteration is fine.
-- **Never assume the NVIDIA driver is absent.** The customer's server may have drivers
-  installed outside of Ansible before this repo ever touched it. Every driver-related
-  task must check current state (`nvidia-smi`) before deciding to install/upgrade/reboot.
-  See [docs/nvidia-driver-management.md](docs/nvidia-driver-management.md).
+- **Never assume any part of the host is a blank slate.** The customer's server may
+  already have an NVIDIA driver, Docker, firewalld config, or SELinux policy in place
+  before this repo ever touched it — not just the driver. Every one of those areas
+  follows the same detect-then-manage pattern: check current state, and only
+  install/change something when the matching `*_manage` variable
+  (`nvidia_driver_manage`, `docker_manage`, `firewalld_manage`, `selinux_manage`) is
+  explicitly true for that environment. See
+  [docs/host-safety-model.md](docs/host-safety-model.md) (general pattern) and
+  [docs/nvidia-driver-management.md](docs/nvidia-driver-management.md) (driver
+  specifics).
 - **Never run `--force`, driver reinstalls, or anything that triggers a reboot without
   surfacing that to the user first.** A reboot on the customer's server has real
   downtime cost.
+- **Agentless, SSH-only.** Nothing in this repo should require installing a persistent
+  agent, daemon, or control-plane component on the target host. Every run connects
+  over SSH, applies changes, and disconnects.
 - **Model IDs and licensing**: Gemma and Llama weights are gated on Hugging Face. Don't
   invent or guess exact HF repo IDs/revisions — they're Ansible variables
   (`group_vars/all.yml`) that the user must confirm. If a variable looks like a
@@ -48,6 +57,8 @@ against the `customer` inventory as production deploys, not local dev commands.
 - If you change driver-detection or install logic, update
   [docs/nvidia-driver-management.md](docs/nvidia-driver-management.md) — this is the
   most safety-critical part of the repo.
+- If you add a new detect-then-manage gate (a new `*_manage` variable) or change an
+  existing one, update [docs/host-safety-model.md](docs/host-safety-model.md).
 - Don't add abstractions (dynamic role generation, custom modules) for the two-model
   case in front of us. Two vLLM services, two sets of vars, one compose template with a
   loop is enough.

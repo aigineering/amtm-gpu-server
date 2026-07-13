@@ -1,5 +1,9 @@
 # NVIDIA driver management
 
+This is the highest-risk instance of a pattern applied throughout this repo — see
+[host-safety-model.md](host-safety-model.md) for how the same detect-then-manage
+approach also covers Docker, firewalld, SELinux, and GPU capacity.
+
 ## The problem
 
 This playbook runs against two very different hosts:

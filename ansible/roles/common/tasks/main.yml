@@ -14,11 +14,53 @@
     name: "{{ common_packages }}"
     state: present
 
-- name: Ensure firewalld is running
-  ansible.builtin.service:
-    name: firewalld
-    state: started
-    enabled: true
+# firewalld: detect-then-manage, same pattern as the NVIDIA driver. A customer host
+# may intentionally run without firewalld (relying on a cloud security group or an
+# external firewall instead) — enabling it fresh could drop traffic that currently
+# flows freely. See docs/host-safety-model.md.
+- name: Check whether firewalld is currently active
+  ansible.builtin.command: systemctl is-active firewalld
+  register: firewalld_active_check
+  changed_when: false
+  failed_when: false
+
+- name: Set firewalld detection facts
+  ansible.builtin.set_fact:
+    firewalld_currently_active: "{{ firewalld_active_check.stdout == 'active' }}"
+
+- name: Report firewalld state
+  ansible.builtin.debug:
+    msg: "firewalld currently active: {{ firewalld_currently_active }}"
+
+- name: Install and enable firewalld
+  when:
+    - not firewalld_currently_active
+    - firewalld_manage
+  block:
+    - name: Install firewalld package
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+
+    - name: Start and enable firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Firewalld is now active for this run
+      ansible.builtin.set_fact:
+        firewalld_currently_active: true
+
+- name: Skip firewall configuration (firewalld inactive and firewalld_manage is false)
+  ansible.builtin.debug:
+    msg: >-
+      firewalld is not active on this host and firewalld_manage is false, so it will
+      not be installed/enabled. Ensure vLLM ports
+      ({{ vllm_instances | map(attribute='port') | join(', ') }}) are reachable through
+      whatever mechanism this host actually uses (security group, external firewall,
+      etc). Set firewalld_manage: true to have this role manage it instead.
+  when: not firewalld_currently_active
 
 - name: Open vLLM instance ports in firewalld
   ansible.posix.firewalld:
@@ -29,3 +71,4 @@
   loop: "{{ vllm_instances }}"
   loop_control:
     label: "{{ item.name }} ({{ item.port }}/tcp)"
+  when: firewalld_currently_active

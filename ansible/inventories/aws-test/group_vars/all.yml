@@ -1,8 +1,12 @@
 ---
-# Clean, disposable AWS box: safe to install the driver from scratch.
+# Clean, disposable AWS box: safe to install/manage everything from scratch.
 nvidia_driver_manage: true
 nvidia_driver_min_version: "550"
 nvidia_driver_target_version: "550"
+
+docker_manage: true
+firewalld_manage: true
+selinux_manage: true
 
 vllm_deploy_dir: /opt/vllm
 vllm_hf_token: "CHANGEME"  # override via ansible-vault, never commit a real token

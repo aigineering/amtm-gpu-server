@@ -40,20 +40,28 @@ accepted-license Hugging Face token for Gemma and Llama (see
 
 ## 3. Before touching the customer server
 
-**Do not skip this.** The customer's server may already have an NVIDIA driver and other
-software installed outside of Ansible.
+**Do not skip this.** The customer's server may already have an NVIDIA driver, Docker,
+a firewall config, and an SELinux policy in place outside of Ansible. Every
+`*_manage` flag defaults to `false` in `inventories/customer/group_vars/all.yml`, so a
+run at this stage cannot change anything — it can only detect and report. See
+[host-safety-model.md](host-safety-model.md) for the pattern behind this.
 
-1. Run driver detection only:
+1. Run a full report-only pass (all `*_manage` flags false):
    ```bash
-   ansible customer -i inventories/customer/hosts.yml -m command \
-     -a "nvidia-smi --query-gpu=driver_version,name,memory.total --format=csv"
+   ansible-playbook -i inventories/customer/hosts.yml playbooks/site.yml --check --diff
    ```
-2. Set `nvidia_driver_min_version` in `inventories/customer/group_vars/all.yml` to match
-   what's already installed, and leave `nvidia_driver_manage: false` until you've
-   reviewed the report with the customer.
-3. Check what else is already on the box (existing Docker install, existing GPU
-   workloads competing for VRAM) before assuming the full `vllm_instances` GPU split
-   from the test run applies as-is.
+   This will fail at the first gap it finds (e.g. driver below minimum version, Docker
+   missing, GPU toolkit not configured, SELinux boolean off) with a message naming
+   exactly what's missing. That's expected — work through each failure in order.
+2. For each failure, decide with the customer/stakeholder whether to:
+   - Set the matching `*_manage` flag (`nvidia_driver_manage`, `docker_manage`,
+     `firewalld_manage`, `selinux_manage`) to `true` and let Ansible handle it, or
+   - Handle it manually/out-of-band and re-run to confirm the check now passes.
+3. Set `nvidia_driver_min_version` to match what's already installed (from the
+   `nvidia-smi` output surfaced in step 1) rather than an arbitrary target.
+4. Confirm existing GPU memory usage (also reported automatically by the `vllm` role)
+   before assuming the full `vllm_instances` GPU split from the test run applies as-is
+   — another workload may already be using part of the GPU.
 
 ## 4. Apply to the customer server
 

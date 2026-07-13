@@ -7,6 +7,55 @@
       vllm_instances is empty. Define at least one instance in
       inventories/<env>/group_vars/all.yml — see docs/vllm-configuration.md.
 
+# GPU capacity preflight: the customer's GPU may already be running other workloads
+# before this playbook ever touches the box. This is read-only detection (no gate
+# needed) but must run before we commit to a memory split. See
+# docs/host-safety-model.md.
+- name: List existing GPU compute processes
+  ansible.builtin.command: nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
+  register: gpu_compute_apps
+  changed_when: false
+  failed_when: false
+
+- name: Report existing GPU compute processes
+  ansible.builtin.debug:
+    msg: >-
+      GPU processes already running outside this playbook:
+      {{ gpu_compute_apps.stdout_lines if gpu_compute_apps.stdout_lines | length > 0 else ['none'] }}
+
+- name: Check current GPU memory usage
+  ansible.builtin.command: nvidia-smi --query-gpu=memory.total,memory.used --format=csv,noheader,nounits
+  register: gpu_memory_check
+  changed_when: false
+
+- name: Parse GPU memory facts
+  ansible.builtin.set_fact:
+    gpu_memory_total_mib: "{{ gpu_memory_check.stdout_lines[0].split(',')[0] | trim | int }}"
+    gpu_memory_used_mib: "{{ gpu_memory_check.stdout_lines[0].split(',')[1] | trim | int }}"
+
+- name: Compute requested vs. already-used GPU memory
+  ansible.builtin.set_fact:
+    gpu_memory_used_fraction: "{{ (gpu_memory_used_mib | float) / (gpu_memory_total_mib | float) }}"
+    gpu_memory_requested_fraction: "{{ vllm_instances | map(attribute='gpu_memory_utilization') | map('float') | sum }}"
+
+- name: Report GPU memory budget
+  ansible.builtin.debug:
+    msg: >-
+      GPU memory already in use: {{ gpu_memory_used_mib }} MiB / {{ gpu_memory_total_mib }} MiB
+      ({{ (gpu_memory_used_fraction | float * 100) | round(1) }}%).
+      vllm_instances request a combined
+      {{ (gpu_memory_requested_fraction | float * 100) | round(1) }}% of total GPU memory.
+
+- name: Fail if existing usage plus requested vLLM memory would overcommit the GPU
+  ansible.builtin.assert:
+    that: (gpu_memory_used_fraction | float) + (gpu_memory_requested_fraction | float) <= 0.97
+    fail_msg: >-
+      Existing GPU usage ({{ (gpu_memory_used_fraction | float * 100) | round(1) }}%) plus the
+      requested vllm_instances memory utilization ({{ (gpu_memory_requested_fraction | float * 100) | round(1) }}%)
+      would overcommit the GPU. Reduce gpu_memory_utilization values in group_vars, or
+      investigate what else is using the GPU (see the process list reported above)
+      before proceeding.
+
 - name: Ensure vLLM deploy directory exists
   ansible.builtin.file:
     path: "{{ vllm_deploy_dir }}"

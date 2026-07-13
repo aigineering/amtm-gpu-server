@@ -1,20 +1,67 @@
 ---
-- name: Add Docker CE repo
-  ansible.builtin.get_url:
-    url: "{{ docker_ce_repo_url }}"
-    dest: /etc/yum.repos.d/docker-ce.repo
-    mode: "0644"
+# Detect-then-manage for the container runtime, the GPU toolkit, and SELinux — the
+# customer's server may already have Docker (possibly a different version/config) or
+# a deliberate SELinux policy in place before this repo ever ran. See
+# docs/host-safety-model.md for the general pattern.
 
-- name: Install Docker packages
-  ansible.builtin.dnf:
-    name: "{{ docker_packages }}"
-    state: present
+- name: Check for an existing Docker engine
+  ansible.builtin.command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
 
-- name: Ensure docker service is started and enabled
-  ansible.builtin.service:
-    name: docker
-    state: started
-    enabled: true
+- name: Check whether the docker service is active
+  ansible.builtin.command: systemctl is-active docker
+  register: docker_service_check
+  changed_when: false
+  failed_when: false
+
+- name: Set docker detection facts
+  ansible.builtin.set_fact:
+    docker_detected: "{{ docker_check.rc == 0 }}"
+    docker_service_active: "{{ docker_service_check.stdout == 'active' }}"
+
+- name: Report docker engine state
+  ansible.builtin.debug:
+    msg: >-
+      Docker detected: {{ docker_detected }}{{ ' (' ~ docker_check.stdout ~ ')' if docker_detected else '' }};
+      service active: {{ docker_service_active }}
+
+- name: Fail if Docker engine is missing/stopped and docker_manage is false
+  ansible.builtin.fail:
+    msg: >-
+      Docker is {{ 'not installed' if not docker_detected else 'installed but not running' }}
+      and docker_manage is false, so this role will not install or start it. Confirm
+      with the server owner whether Docker is managed elsewhere, then set
+      docker_manage: true for this environment if this role should install/start it.
+      See docs/host-safety-model.md.
+  when:
+    - not (docker_detected and docker_service_active)
+    - not docker_manage
+
+- name: Install and start Docker engine
+  when:
+    - not (docker_detected and docker_service_active)
+    - docker_manage
+  block:
+    - name: Add Docker CE repo
+      ansible.builtin.get_url:
+        url: "{{ docker_ce_repo_url }}"
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: "0644"
+      when: not docker_detected
+
+    - name: Install Docker packages
+      ansible.builtin.dnf:
+        name: "{{ docker_packages }}"
+        state: present
+      when: not docker_detected
+
+    - name: Ensure docker service is started and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
 
 - name: Add users to the docker group
   ansible.builtin.user:
@@ -23,22 +70,117 @@
     append: true
   loop: "{{ docker_users }}"
 
-- name: Add NVIDIA Container Toolkit repo
-  ansible.builtin.get_url:
-    url: "{{ nvidia_container_toolkit_repo_url }}"
-    dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
-    mode: "0644"
+# NVIDIA Container Toolkit: required for containers to access the GPU regardless of
+# who installed Docker itself.
+- name: Check whether nvidia-container-toolkit is installed
+  ansible.builtin.command: rpm -q nvidia-container-toolkit
+  register: nvidia_toolkit_check
+  changed_when: false
+  failed_when: false
 
-- name: Install nvidia-container-toolkit
-  ansible.builtin.dnf:
-    name: nvidia-container-toolkit
-    state: present
+- name: Check whether the nvidia runtime is configured for Docker
+  ansible.builtin.command: grep -q '"nvidia"' /etc/docker/daemon.json
+  register: nvidia_runtime_check
+  changed_when: false
+  failed_when: false
 
-- name: Configure the NVIDIA runtime for Docker
-  ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
-  register: nvidia_ctk_configure
-  changed_when: "'Adding runtime' in nvidia_ctk_configure.stdout or 'Runtime configuration' in nvidia_ctk_configure.stdout"
-  notify: Restart docker
+- name: Set toolkit detection facts
+  ansible.builtin.set_fact:
+    nvidia_toolkit_detected: "{{ nvidia_toolkit_check.rc == 0 }}"
+    nvidia_runtime_configured: "{{ nvidia_runtime_check.rc == 0 }}"
+
+- name: Report NVIDIA Container Toolkit state
+  ansible.builtin.debug:
+    msg: >-
+      nvidia-container-toolkit installed: {{ nvidia_toolkit_detected }};
+      nvidia runtime configured in Docker: {{ nvidia_runtime_configured }}
+
+- name: Fail if GPU container support is missing and docker_manage is false
+  ansible.builtin.fail:
+    msg: >-
+      nvidia-container-toolkit is {{ 'not installed' if not nvidia_toolkit_detected else 'installed but the nvidia runtime is not configured for Docker' }},
+      so vLLM containers will not be able to access the GPU. docker_manage is false,
+      so this role will not install/configure it. Set docker_manage: true for this
+      environment once you've confirmed it's safe to do so.
+  when:
+    - not (nvidia_toolkit_detected and nvidia_runtime_configured)
+    - not docker_manage
+
+- name: Install and configure NVIDIA Container Toolkit
+  when:
+    - not (nvidia_toolkit_detected and nvidia_runtime_configured)
+    - docker_manage
+  block:
+    - name: Add NVIDIA Container Toolkit repo
+      ansible.builtin.get_url:
+        url: "{{ nvidia_container_toolkit_repo_url }}"
+        dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
+        mode: "0644"
+      when: not nvidia_toolkit_detected
+
+    - name: Install nvidia-container-toolkit
+      ansible.builtin.dnf:
+        name: nvidia-container-toolkit
+        state: present
+      when: not nvidia_toolkit_detected
+
+    - name: Configure the NVIDIA runtime for Docker
+      ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+      register: nvidia_ctk_configure
+      changed_when: "'Adding runtime' in nvidia_ctk_configure.stdout or 'Runtime configuration' in nvidia_ctk_configure.stdout"
+      notify: Restart docker
+      when: not nvidia_runtime_configured
+
+# SELinux: RHEL 9 defaults to Enforcing. Under Enforcing mode, containers need the
+# container_use_devices boolean to access GPU device nodes. This is a security-policy
+# change, gated independently of docker_manage.
+- name: Check SELinux mode
+  ansible.builtin.command: getenforce
+  register: selinux_mode_check
+  changed_when: false
+  failed_when: false
+
+- name: Set SELinux mode fact
+  ansible.builtin.set_fact:
+    selinux_mode: "{{ selinux_mode_check.stdout | default('Unknown') | trim }}"
+
+- name: Check container_use_devices SELinux boolean
+  ansible.builtin.command: getsebool container_use_devices
+  register: selinux_bool_check
+  changed_when: false
+  failed_when: false
+  when: selinux_mode == 'Enforcing'
+
+- name: Set SELinux boolean fact
+  ansible.builtin.set_fact:
+    selinux_container_devices_enabled: "{{ selinux_mode != 'Enforcing' or 'on' in selinux_bool_check.stdout }}"
+
+- name: Report SELinux state
+  ansible.builtin.debug:
+    msg: >-
+      SELinux mode: {{ selinux_mode }};
+      container_use_devices boolean satisfied: {{ selinux_container_devices_enabled }}
+
+- name: Fail if SELinux would block GPU device access and selinux_manage is false
+  ansible.builtin.fail:
+    msg: >-
+      SELinux is Enforcing and the container_use_devices boolean is off, which will
+      likely block vLLM containers from accessing the GPU. selinux_manage is false,
+      so this role will not change SELinux policy. Confirm with the server owner,
+      then set selinux_manage: true for this environment, or enable the boolean
+      manually: `setsebool -P container_use_devices on`.
+  when:
+    - not selinux_container_devices_enabled
+    - not selinux_manage
+
+- name: Enable container_use_devices SELinux boolean
+  ansible.posix.seboolean:
+    name: container_use_devices
+    state: true
+    persistent: true
+  when:
+    - not selinux_container_devices_enabled
+    - selinux_manage
 
 - name: Flush handlers so docker is restarted before the vllm role runs
   ansible.builtin.meta: flush_handlers
