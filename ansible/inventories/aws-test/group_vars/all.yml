@@ -1,0 +1,23 @@
+---
+# Clean, disposable AWS box: safe to install the driver from scratch.
+nvidia_driver_manage: true
+nvidia_driver_min_version: "550"
+nvidia_driver_target_version: "550"
+
+vllm_deploy_dir: /opt/vllm
+vllm_hf_token: "CHANGEME"  # override via ansible-vault, never commit a real token
+
+vllm_instances:
+  - name: gemma
+    model: "CHANGEME/gemma-4-26b-a4b"  # confirm exact HF repo id before deploying
+    port: 8001
+    gpu_memory_utilization: 0.6
+    max_model_len: 8192
+    extra_args: []
+
+  - name: llama
+    model: "meta-llama/Llama-3.2-3B-Instruct"
+    port: 8002
+    gpu_memory_utilization: 0.3
+    max_model_len: 8192
+    extra_args: []

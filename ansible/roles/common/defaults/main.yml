@@ -1,0 +1,10 @@
+---
+common_packages:
+  - dnf-plugins-core
+  - kernel-devel
+  - kernel-headers
+  - gcc
+  - make
+  - curl
+  - tar
+  - firewalld

@@ -1,0 +1,36 @@
+---
+# Rendered by the `vllm` Ansible role — do not edit by hand, changes will be
+# overwritten on the next playbook run. Edit vllm_instances in group_vars instead.
+services:
+{% for instance in vllm_instances %}
+  vllm-{{ instance.name }}:
+    image: "{{ vllm_image }}"
+    container_name: "vllm-{{ instance.name }}"
+    restart: unless-stopped
+    ipc: host
+    ports:
+      - "{{ instance.port }}:{{ instance.port }}"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: "{{ vllm_hf_token }}"
+    volumes:
+      - "{{ vllm_hf_cache_dir }}:/root/.cache/huggingface"
+    command:
+      - "--model"
+      - "{{ instance.model }}"
+      - "--port"
+      - "{{ instance.port | string }}"
+      - "--gpu-memory-utilization"
+      - "{{ instance.gpu_memory_utilization }}"
+      - "--max-model-len"
+      - "{{ instance.max_model_len | string }}"
+{% for arg in instance.extra_args | default([]) %}
+      - "{{ arg }}"
+{% endfor %}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+{% endfor %}

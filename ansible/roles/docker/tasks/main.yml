@@ -1,0 +1,44 @@
+---
+- name: Add Docker CE repo
+  ansible.builtin.get_url:
+    url: "{{ docker_ce_repo_url }}"
+    dest: /etc/yum.repos.d/docker-ce.repo
+    mode: "0644"
+
+- name: Install Docker packages
+  ansible.builtin.dnf:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: Ensure docker service is started and enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add users to the docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+
+- name: Add NVIDIA Container Toolkit repo
+  ansible.builtin.get_url:
+    url: "{{ nvidia_container_toolkit_repo_url }}"
+    dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
+    mode: "0644"
+
+- name: Install nvidia-container-toolkit
+  ansible.builtin.dnf:
+    name: nvidia-container-toolkit
+    state: present
+
+- name: Configure the NVIDIA runtime for Docker
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+  register: nvidia_ctk_configure
+  changed_when: "'Adding runtime' in nvidia_ctk_configure.stdout or 'Runtime configuration' in nvidia_ctk_configure.stdout"
+  notify: Restart docker
+
+- name: Flush handlers so docker is restarted before the vllm role runs
+  ansible.builtin.meta: flush_handlers

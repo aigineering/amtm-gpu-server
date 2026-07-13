@@ -1,0 +1,31 @@
+---
+- name: Assert target is RHEL 9
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "RedHat"
+      - ansible_facts['distribution_major_version'] == "9"
+    fail_msg: >-
+      This repo targets RHEL 9. Detected
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+    success_msg: "RHEL 9 confirmed."
+
+- name: Install base packages
+  ansible.builtin.dnf:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Ensure firewalld is running
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Open vLLM instance ports in firewalld
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.port }}/tcp)"

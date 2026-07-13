@@ -1,0 +1,15 @@
+---
+# Master switch. When false, this role only detects and reports the current driver
+# state and fails loudly if action would be needed — it never installs/upgrades.
+# See docs/nvidia-driver-management.md before enabling on a pre-provisioned server.
+nvidia_driver_manage: false
+
+# Minimum driver version considered acceptable if already present.
+nvidia_driver_min_version: "550"
+
+# Version installed on a from-scratch install (only used when nvidia_driver_manage
+# is true and no driver, or an out-of-date one, is present).
+nvidia_driver_target_version: "550"
+
+# Official NVIDIA CUDA repo for RHEL 9, x86_64.
+nvidia_driver_repo_url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo"

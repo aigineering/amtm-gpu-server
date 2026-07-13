@@ -1,0 +1,12 @@
+---
+vllm_deploy_dir: /opt/vllm
+vllm_hf_cache_dir: "{{ vllm_deploy_dir }}/hf-cache"
+
+# Pin this once you've validated a version against the models you're running —
+# "latest" is a convenience default for initial experimentation only.
+vllm_image: "vllm/vllm-openai:latest"
+
+vllm_hf_token: ""
+
+# Each entry: name, model, port, gpu_memory_utilization, max_model_len, extra_args (list)
+vllm_instances: []

@@ -1,0 +1,32 @@
+---
+- name: Assert vllm_instances is configured
+  ansible.builtin.assert:
+    that:
+      - vllm_instances | length > 0
+    fail_msg: >-
+      vllm_instances is empty. Define at least one instance in
+      inventories/<env>/group_vars/all.yml — see docs/vllm-configuration.md.
+
+- name: Ensure vLLM deploy directory exists
+  ansible.builtin.file:
+    path: "{{ vllm_deploy_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure Hugging Face cache directory exists
+  ansible.builtin.file:
+    path: "{{ vllm_hf_cache_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Render docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ vllm_deploy_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Deploy vLLM services
+  community.docker.docker_compose_v2:
+    project_src: "{{ vllm_deploy_dir }}"
+    state: present
+    remove_orphans: true

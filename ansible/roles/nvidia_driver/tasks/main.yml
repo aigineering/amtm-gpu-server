@@ -1,0 +1,78 @@
+---
+# Detect-then-install: this role must never assume the driver is absent. Customer
+# servers may have a driver installed outside of Ansible before this repo ever ran.
+# See ../../../docs/nvidia-driver-management.md for the full rationale.
+
+- name: Check for existing NVIDIA driver via nvidia-smi
+  ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
+  register: nvidia_smi_check
+  changed_when: false
+  failed_when: false
+
+- name: Set driver detection facts
+  ansible.builtin.set_fact:
+    nvidia_driver_detected: "{{ nvidia_smi_check.rc == 0 }}"
+    nvidia_driver_current_version: >-
+      {{ (nvidia_smi_check.stdout_lines[0] | default('')) | trim }}
+
+- name: Report detected driver state
+  ansible.builtin.debug:
+    msg: >-
+      NVIDIA driver detected: {{ nvidia_driver_detected }}{{
+      ' (version ' ~ nvidia_driver_current_version ~ ')' if nvidia_driver_detected else '' }}
+
+- name: Determine whether install/upgrade is needed
+  ansible.builtin.set_fact:
+    nvidia_driver_needs_install: >-
+      {{ not nvidia_driver_detected or
+         (nvidia_driver_current_version is version(nvidia_driver_min_version, '<')) }}
+
+- name: Fail if driver missing/outdated and management is disabled
+  ansible.builtin.fail:
+    msg: >-
+      NVIDIA driver is
+      {{ 'missing' if not nvidia_driver_detected else
+      'below the minimum version (' ~ nvidia_driver_current_version ~ ' < ' ~ nvidia_driver_min_version ~ ')' }}
+      and nvidia_driver_manage is false, so this role will not install/upgrade it.
+      Review docs/nvidia-driver-management.md, confirm the intended version with the
+      server owner, then set nvidia_driver_manage: true for this environment if
+      installation should proceed.
+  when:
+    - nvidia_driver_needs_install
+    - not nvidia_driver_manage
+
+- name: Install or upgrade NVIDIA driver
+  when:
+    - nvidia_driver_needs_install
+    - nvidia_driver_manage
+  block:
+    - name: Add NVIDIA CUDA repo (RHEL 9)
+      ansible.builtin.get_url:
+        url: "{{ nvidia_driver_repo_url }}"
+        dest: /etc/yum.repos.d/cuda-rhel9.repo
+        mode: "0644"
+
+    - name: Install NVIDIA kernel module (open dkms) and userspace driver
+      ansible.builtin.dnf:
+        name:
+          - "kmod-nvidia-open-dkms"
+          - "nvidia-driver"
+          - "nvidia-driver-cuda"
+        state: present
+      register: nvidia_driver_install
+
+    - name: Flag that a reboot is required to load the new kernel module
+      ansible.builtin.set_fact:
+        nvidia_driver_reboot_required: "{{ nvidia_driver_install.changed }}"
+
+- name: Report reboot requirement
+  ansible.builtin.debug:
+    msg: >-
+      A reboot is required before the new NVIDIA kernel module is active and the GPU
+      is usable by containers. This role does NOT reboot automatically — reboot the
+      host manually, then re-run the playbook to continue with Docker/vLLM setup.
+  when: nvidia_driver_reboot_required | default(false)
+
+- name: Stop this run here until the required reboot has happened
+  ansible.builtin.meta: end_host
+  when: nvidia_driver_reboot_required | default(false)

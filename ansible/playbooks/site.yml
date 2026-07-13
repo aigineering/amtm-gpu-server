@@ -1,0 +1,13 @@
+---
+- name: Configure GPU host and deploy vLLM instances
+  hosts: gpu_servers
+  become: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: nvidia_driver
+      tags: [nvidia_driver, driver]
+    - role: docker
+      tags: [docker]
+    - role: vllm
+      tags: [vllm]
