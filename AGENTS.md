@@ -25,13 +25,21 @@ against the `customer` inventory as production deploys, not local dev commands.
 - **Agentless, SSH-only.** Nothing in this repo should require installing a persistent
   agent, daemon, or control-plane component on the target host. Every run connects
   over SSH, applies changes, and disconnects.
-- **Model source is local, not downloaded**: `vllm_instances[].model_path` must point
-  at a full Hugging Face–format repo (config.json, tokenizer files, safetensors)
-  already present on the host — this repo never downloads models, and the `vllm` role
-  enforces that with `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE`. Don't invent or guess a
-  real path; it's an Ansible variable (`group_vars/all.yml`) the user must confirm. If
-  it looks like a placeholder (e.g. `CHANGEME`), flag it rather than treating it as
-  correct.
+- **Model source is local, not downloaded, during a normal apply**: `vllm_instances[].model_path`
+  must point at a full Hugging Face–format repo (config.json, tokenizer files,
+  safetensors) already present on the host — `site.yml`/the `vllm` role never
+  download models, and enforce that with `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE`.
+  Don't invent or guess a real path; it's an Ansible variable (`group_vars/all.yml`)
+  the user must confirm. If it looks like a placeholder (e.g. `CHANGEME`), flag it
+  rather than treating it as correct.
+- **`playbooks/fetch-models.yml` needs an explicitly opened firewall, every time.**
+  It's the only thing in this repo that touches the network for anything beyond the
+  SSH control connection, and it only works during a window the customer's IT team
+  has deliberately opened. Never assume that window is open — the role checks
+  reachability first and fails clearly if not, but don't suggest running this
+  playbook against the `customer` inventory without the user confirming the window is
+  active, on top of the usual customer-inventory confirmation rule above. See
+  [docs/model-fetching.md](docs/model-fetching.md).
 - **Idempotency matters more than speed here.** Every role should be safe to re-run.
   This repo's whole point is "run once on a clean AWS box, then re-run unchanged on a
   customer box that already has some things installed." Tasks that aren't naturally

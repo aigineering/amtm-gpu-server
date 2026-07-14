@@ -1,0 +1,13 @@
+---
+# This role is never run as part of the default site.yml apply — only via
+# playbooks/fetch-models.yml, deliberately, during a window where this host has been
+# given temporary internet access. See docs/model-fetching.md.
+
+model_fetch_venv: /opt/model-fetch-venv
+
+# Set via ansible-vault (group_vars/vault.yml -> vault_hf_token), never commit a real
+# token in plaintext. Only needed for gated repos during fetch — serving is offline.
+model_fetch_hf_token: ""
+
+# Re-download even if model_path already contains a config.json.
+model_fetch_force: false

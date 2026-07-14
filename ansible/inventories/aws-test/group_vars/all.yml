@@ -10,13 +10,24 @@ selinux_manage: true
 
 vllm_deploy_dir: /opt/vllm
 
-# Model repos are already present on the host as full local copies (config.json,
-# tokenizer files, safetensors) — nothing is downloaded. See
-# docs/model-tuning-and-placement.md for the expected layout and the chat-focused
-# flags used in extra_args below.
+# Only used by playbooks/fetch-models.yml (never by the main site.yml apply). Set
+# model_fetch_hf_token via ansible-vault (group_vars/vault.yml -> vault_hf_token) —
+# see docs/model-fetching.md. This box is disposable, so re-fetching is cheap; leave
+# model_fetch_force false unless you deliberately want to redownload.
+model_fetch_hf_token: "{{ vault_hf_token | default('') }}"
+model_fetch_force: false
+
+# Model repos are expected to already be present on the host as full local copies
+# (config.json, tokenizer files, safetensors) before the vllm role runs — it never
+# downloads anything. repo_id/revision below are only read by
+# playbooks/fetch-models.yml to populate model_path in the first place. See
+# docs/model-tuning-and-placement.md (layout/tuning) and docs/model-fetching.md
+# (how repo_id gets turned into model_path).
 vllm_instances:
   - name: gemma
     model_path: "/opt/models/gemma-4-26b-a4b"  # CHANGEME: local path to the full model repo
+    repo_id: "CHANGEME/gemma-4-26b-a4b"        # confirm exact HF repo id before fetching
+    revision: main
     port: 8001
     gpu_memory_utilization: 0.6
     max_model_len: 8192
@@ -26,6 +37,8 @@ vllm_instances:
 
   - name: llama
     model_path: "/opt/models/llama-3.2-3b-instruct"  # CHANGEME: local path to the full model repo
+    repo_id: "meta-llama/Llama-3.2-3B-Instruct"
+    revision: main
     port: 8002
     gpu_memory_utilization: 0.3
     max_model_len: 8192

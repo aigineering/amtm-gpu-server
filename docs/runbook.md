@@ -8,11 +8,26 @@ cd ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
-You'll need SSH access to the target host and, for the customer environment, an
-accepted-license Hugging Face token for Gemma and Llama (see
-[vllm-configuration.md](vllm-configuration.md)).
+You'll need SSH access to the target host.
 
-## 2. First run: clean AWS L40S box
+## 2. Getting model repos onto the host (if not already there)
+
+`site.yml` never touches the network for models — it expects the full repo already
+on disk at each instance's `model_path` (see
+[vllm-configuration.md](vllm-configuration.md)). If it isn't there yet:
+
+```bash
+# only during a window the host's egress is confirmed open (customer hosts have
+# none by default) — see model-fetching.md
+ansible-playbook -i inventories/<env>/hosts.yml playbooks/fetch-models.yml
+```
+
+This is a separate, opt-in playbook precisely because the customer host's internet
+access isn't something this repo controls or can assume. See
+[model-fetching.md](model-fetching.md) for credentials setup (Ansible Vault) and how
+it behaves if the window isn't open yet.
+
+## 3. First run: clean AWS L40S box
 
 1. Launch an EC2 instance from the L40S family (e.g. `g6e.xlarge`) with RHEL 9.
 2. Fill in `ansible/inventories/aws-test/hosts.yml` with its IP/DNS and SSH user.
@@ -38,7 +53,7 @@ accepted-license Hugging Face token for Gemma and Llama (see
    curl http://<host>:8002/v1/models   # llama
    ```
 
-## 3. Before touching the customer server
+## 4. Before touching the customer server
 
 **Do not skip this.** The customer's server may already have an NVIDIA driver, Docker,
 a firewall config, and an SELinux policy in place outside of Ansible. Every
@@ -63,7 +78,7 @@ run at this stage cannot change anything — it can only detect and report. See
    before assuming the full `vllm_instances` GPU split from the test run applies as-is
    — another workload may already be using part of the GPU.
 
-## 4. Apply to the customer server
+## 5. Apply to the customer server
 
 ```bash
 ansible-playbook -i inventories/customer/hosts.yml playbooks/site.yml --check --diff
@@ -74,7 +89,7 @@ ansible-playbook -i inventories/customer/hosts.yml playbooks/site.yml
 Per [AGENTS.md](../AGENTS.md), this run should only happen with explicit confirmation —
 treat it as a production deploy.
 
-## 5. Iterating on configuration
+## 6. Iterating on configuration
 
 Once the stack is up on either environment, most experiments only need the `vllm` tag:
 
@@ -83,7 +98,7 @@ Once the stack is up on either environment, most experiments only need the `vllm
 ansible-playbook -i inventories/<env>/hosts.yml playbooks/site.yml --tags vllm
 ```
 
-## 6. Rollback / teardown
+## 7. Rollback / teardown
 
 ```bash
 ansible <env> -i inventories/<env>/hosts.yml -m shell \

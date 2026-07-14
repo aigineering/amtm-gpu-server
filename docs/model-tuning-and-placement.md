@@ -8,9 +8,11 @@ workload in mind — a deployment optimized for overnight batch scoring would tu
 several of these knobs the other way.
 
 It also assumes the **full model repository** (not just weight files) is already
-present on the host — this repo never downloads a model. See
+present on the host — the normal apply (`site.yml`) never downloads a model. See
 [vllm-configuration.md](vllm-configuration.md) for the `vllm_instances` variable
-schema that points at it.
+schema that points at it, and [model-fetching.md](model-fetching.md) for the
+separate, opt-in playbook that can put it there in the first place (customer hosts
+have no internet access by default).
 
 ## Model placement on disk
 

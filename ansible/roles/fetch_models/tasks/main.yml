@@ -1,0 +1,107 @@
+---
+# Detect-then-fetch, same spirit as the rest of this repo (see
+# docs/host-safety-model.md): check reachability before attempting anything, fail
+# loudly and specifically if the IT-approved internet-access window isn't open yet,
+# and skip any model that's already present rather than re-downloading it.
+
+- name: Assert every vllm_instances entry has a repo_id to fetch from
+  ansible.builtin.assert:
+    that:
+      - item.repo_id is defined
+      - item.repo_id | length > 0
+    fail_msg: >-
+      vllm_instances entry '{{ item.name }}' has no repo_id. Add the Hugging Face
+      repo id to fetch from in group_vars/all.yml before running
+      playbooks/fetch-models.yml — see docs/model-fetching.md.
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check whether Hugging Face Hub is reachable from this host
+  ansible.builtin.uri:
+    url: "https://huggingface.co"
+    method: GET
+    timeout: 10
+    status_code: [200, 301, 302]
+  register: hf_reachability_check
+  failed_when: false
+
+- name: Fail clearly if Hugging Face Hub is not reachable
+  ansible.builtin.fail:
+    msg: >-
+      This host cannot reach huggingface.co. This server has no internet access by
+      default — confirm with the customer's IT team that the temporary egress window
+      is open, then re-run playbooks/fetch-models.yml. See docs/model-fetching.md.
+  when: hf_reachability_check.status | default(0) not in [200, 301, 302]
+
+- name: Ensure python3-pip is installed
+  ansible.builtin.dnf:
+    name: python3-pip
+    state: present
+
+- name: Install huggingface_hub CLI into an isolated virtualenv
+  ansible.builtin.pip:
+    name:
+      - "huggingface_hub[cli]"
+    virtualenv: "{{ model_fetch_venv }}"
+    virtualenv_command: python3 -m venv
+
+- name: Ensure model destination directories exist
+  ansible.builtin.file:
+    path: "{{ item.model_path }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check whether each model repo is already present
+  ansible.builtin.stat:
+    path: "{{ item.model_path }}/config.json"
+  register: model_present_check
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Report fetch plan
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.name }}:
+      {{ 'already present, skipping (model_fetch_force: true to re-download)'
+         if (item.stat.exists and not model_fetch_force) else 'will be fetched' }}
+  loop: "{{ model_present_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Download model repos from Hugging Face Hub
+  ansible.builtin.command: >-
+    {{ model_fetch_venv }}/bin/huggingface-cli download {{ item.item.repo_id }}
+    --revision {{ item.item.revision | default('main') }}
+    --local-dir {{ item.item.model_path }}
+  environment:
+    HUGGING_FACE_HUB_TOKEN: "{{ model_fetch_hf_token }}"
+  # Large repos (the MoE model especially) can take a long time; run asynchronously
+  # so an SSH/control-node hiccup doesn't kill a multi-hour transfer, and rely on
+  # huggingface-cli's built-in resume support if it does get interrupted.
+  async: 14400
+  poll: 30
+  changed_when: true
+  loop: "{{ model_present_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not item.stat.exists or model_fetch_force
+
+- name: Report disk usage of each model directory
+  ansible.builtin.command: "du -sh {{ item.model_path }}"
+  register: model_disk_usage
+  changed_when: false
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Show model directory sizes
+  ansible.builtin.debug:
+    msg: "{{ item.stdout }}"
+  loop: "{{ model_disk_usage.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"

@@ -1,0 +1,10 @@
+---
+# Standalone and opt-in: NOT included in site.yml. Run this only during a window
+# where the customer's IT team has explicitly opened this host's internet access.
+# See docs/model-fetching.md.
+- name: Fetch model repositories onto the GPU host
+  hosts: gpu_servers
+  become: true
+  roles:
+    - role: fetch_models
+      tags: [fetch_models]

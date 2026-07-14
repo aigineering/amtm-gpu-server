@@ -24,8 +24,10 @@ model/GPU-split combinations on the same hardware.
 - **Configuration as data**: model paths, GPU memory fractions, ports, and vLLM CLI
   flags are all Ansible variables, not hardcoded — see
   [docs/vllm-configuration.md](docs/vllm-configuration.md). Model repos are mounted
-  read-only from the host, not downloaded — see
-  [docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md).
+  read-only from the host, not downloaded during a normal apply — see
+  [docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md) and, for
+  the optional standalone playbook that fetches them onto the host,
+  [docs/model-fetching.md](docs/model-fetching.md).
 
 Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 
@@ -41,6 +43,7 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 │   ├── nvidia-driver-management.md
 │   ├── vllm-configuration.md
 │   ├── model-tuning-and-placement.md  # model placement + chat-focused tuning
+│   ├── model-fetching.md      # optional, opt-in: pulling models onto the host
 │   └── runbook.md             # step-by-step operational procedures
 └── ansible/
     ├── ansible.cfg
@@ -49,12 +52,14 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
     │   ├── aws-test/          # clean AWS L40S box used for dry runs
     │   └── customer/          # customer's existing RHEL server
     ├── playbooks/
-    │   └── site.yml
+    │   ├── site.yml
+    │   └── fetch-models.yml   # standalone, opt-in — see docs/model-fetching.md
     └── roles/
         ├── common/            # base OS prep
         ├── nvidia_driver/     # detect-then-install NVIDIA driver
         ├── docker/            # Docker CE + nvidia-container-toolkit
-        └── vllm/              # docker-compose.yml templating + deploy
+        ├── vllm/               # docker-compose.yml templating + deploy
+        └── fetch_models/       # optional: download model repos from HF Hub
 ```
 
 ## Quickstart
