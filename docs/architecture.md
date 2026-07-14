@@ -50,9 +50,13 @@ variable changes and a `docker compose up -d` away, no hardware reconfiguration.
    `nvidia-container-toolkit`, and the SELinux boolean GPU containers need under
    Enforcing mode. Each piece is detected first and only changed when `docker_manage`
    / `selinux_manage` is true.
-4. **vLLM services** (`vllm` role) — checks existing GPU memory/compute usage first
-   (read-only), renders `docker-compose.yml` from Ansible variables, and brings the two
-   services up. See [vllm-configuration.md](vllm-configuration.md).
+4. **vLLM services** (`vllm` role) — validates that each configured `model_path`
+   exists on the host and looks like a full model repo, checks existing GPU
+   memory/compute usage (read-only), renders `docker-compose.yml` from Ansible
+   variables, and brings the two services up. Model repos are bind-mounted read-only
+   into each container from the host — never downloaded. See
+   [vllm-configuration.md](vllm-configuration.md) and
+   [model-tuning-and-placement.md](model-tuning-and-placement.md).
 
 Every gated step in 1–3 follows the same detect-then-manage pattern — see
 [host-safety-model.md](host-safety-model.md) for the general rationale instead of

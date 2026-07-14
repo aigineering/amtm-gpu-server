@@ -21,8 +21,11 @@ model/GPU-split combinations on the same hardware.
   driver, Docker, firewalld config, or SELinux policy in place. Every one of those
   areas is detected before anything is touched — see
   [docs/host-safety-model.md](docs/host-safety-model.md).
-- **Configuration as data**: model IDs, GPU memory fractions, ports, and vLLM CLI flags
-  are all Ansible variables, not hardcoded — see [docs/vllm-configuration.md](docs/vllm-configuration.md).
+- **Configuration as data**: model paths, GPU memory fractions, ports, and vLLM CLI
+  flags are all Ansible variables, not hardcoded — see
+  [docs/vllm-configuration.md](docs/vllm-configuration.md). Model repos are mounted
+  read-only from the host, not downloaded — see
+  [docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md).
 
 Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 
@@ -37,6 +40,7 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 │   ├── host-safety-model.md   # the detect-then-manage pattern used everywhere
 │   ├── nvidia-driver-management.md
 │   ├── vllm-configuration.md
+│   ├── model-tuning-and-placement.md  # model placement + chat-focused tuning
 │   └── runbook.md             # step-by-step operational procedures
 └── ansible/
     ├── ansible.cfg
@@ -71,7 +75,9 @@ ansible-playbook -i inventories/customer/hosts.yml playbooks/site.yml
 
 ## Status
 
-Early scaffolding — Ansible roles are being built out incrementally. Model repo IDs
-and default GPU memory splits in `ansible/inventories/*/group_vars/all.yml` are
-placeholders and must be confirmed against Hugging Face / your license terms before
-a real deploy.
+Early scaffolding — Ansible roles are being built out incrementally. Model repos are
+assumed to already exist on the target host as full local copies (see
+[docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md)); the exact
+`model_path` values and default GPU memory splits in
+`ansible/inventories/*/group_vars/all.yml` are placeholders and must be confirmed
+before a real deploy.

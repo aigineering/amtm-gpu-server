@@ -9,19 +9,26 @@ firewalld_manage: true
 selinux_manage: true
 
 vllm_deploy_dir: /opt/vllm
-vllm_hf_token: "CHANGEME"  # override via ansible-vault, never commit a real token
 
+# Model repos are already present on the host as full local copies (config.json,
+# tokenizer files, safetensors) — nothing is downloaded. See
+# docs/model-tuning-and-placement.md for the expected layout and the chat-focused
+# flags used in extra_args below.
 vllm_instances:
   - name: gemma
-    model: "CHANGEME/gemma-4-26b-a4b"  # confirm exact HF repo id before deploying
+    model_path: "/opt/models/gemma-4-26b-a4b"  # CHANGEME: local path to the full model repo
     port: 8001
     gpu_memory_utilization: 0.6
     max_model_len: 8192
-    extra_args: []
+    extra_args:
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
 
   - name: llama
-    model: "meta-llama/Llama-3.2-3B-Instruct"
+    model_path: "/opt/models/llama-3.2-3b-instruct"  # CHANGEME: local path to the full model repo
     port: 8002
     gpu_memory_utilization: 0.3
     max_model_len: 8192
-    extra_args: []
+    extra_args:
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"

@@ -25,11 +25,13 @@ against the `customer` inventory as production deploys, not local dev commands.
 - **Agentless, SSH-only.** Nothing in this repo should require installing a persistent
   agent, daemon, or control-plane component on the target host. Every run connects
   over SSH, applies changes, and disconnects.
-- **Model IDs and licensing**: Gemma and Llama weights are gated on Hugging Face. Don't
-  invent or guess exact HF repo IDs/revisions — they're Ansible variables
-  (`group_vars/all.yml`) that the user must confirm. If a variable looks like a
-  placeholder (e.g. contains `CHANGEME` or is obviously a guess), flag it rather than
-  treating it as correct.
+- **Model source is local, not downloaded**: `vllm_instances[].model_path` must point
+  at a full Hugging Face–format repo (config.json, tokenizer files, safetensors)
+  already present on the host — this repo never downloads models, and the `vllm` role
+  enforces that with `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE`. Don't invent or guess a
+  real path; it's an Ansible variable (`group_vars/all.yml`) the user must confirm. If
+  it looks like a placeholder (e.g. `CHANGEME`), flag it rather than treating it as
+  correct.
 - **Idempotency matters more than speed here.** Every role should be safe to re-run.
   This repo's whole point is "run once on a clean AWS box, then re-run unchanged on a
   customer box that already has some things installed." Tasks that aren't naturally
@@ -38,7 +40,7 @@ against the `customer` inventory as production deploys, not local dev commands.
 ## Conventions
 
 - Ansible-lint should pass (`ansible-lint ansible/`) before considering a role done.
-- Variables that vary between environments (model IDs, GPU memory fractions, ports,
+- Variables that vary between environments (model paths, GPU memory fractions, ports,
   driver version pins) live in `ansible/inventories/<env>/group_vars/all.yml`, not
   hardcoded in role tasks/templates.
 - Each role should be testable in isolation via tags (e.g. `--tags nvidia_driver`).
@@ -53,7 +55,9 @@ against the `customer` inventory as production deploys, not local dev commands.
 
 - If you add a new configurable knob (new vLLM flag, new model, new GPU split), add it
   as a variable with a sane default and document it in
-  [docs/vllm-configuration.md](docs/vllm-configuration.md).
+  [docs/vllm-configuration.md](docs/vllm-configuration.md). If it's a serving/tuning
+  flag, also cover the chat-vs-batch reasoning in
+  [docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md).
 - If you change driver-detection or install logic, update
   [docs/nvidia-driver-management.md](docs/nvidia-driver-management.md) — this is the
   most safety-critical part of the repo.

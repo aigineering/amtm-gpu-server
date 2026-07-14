@@ -1,12 +1,21 @@
 ---
 vllm_deploy_dir: /opt/vllm
-vllm_hf_cache_dir: "{{ vllm_deploy_dir }}/hf-cache"
 
 # Pin this once you've validated a version against the models you're running —
 # "latest" is a convenience default for initial experimentation only.
 vllm_image: "vllm/vllm-openai:latest"
 
-vllm_hf_token: ""
-
-# Each entry: name, model, port, gpu_memory_utilization, max_model_len, extra_args (list)
+# Each entry:
+#   name                    - short identifier, used for container name and mount point
+#   model_path               - absolute path on the HOST to a full local HF-format model
+#                              repo (config.json, tokenizer files, safetensors) — this
+#                              role does not download anything, it only mounts what's
+#                              already on disk read-only into the container.
+#   served_model_name        - optional, name exposed via the OpenAI-compatible API
+#                              (defaults to `name`)
+#   port                     - host port to publish
+#   gpu_memory_utilization   - fraction of total GPU memory this instance may claim
+#   max_model_len             - max context length in tokens
+#   extra_args                - list of additional vLLM CLI flags
+# See docs/vllm-configuration.md and docs/model-tuning-and-placement.md.
 vllm_instances: []

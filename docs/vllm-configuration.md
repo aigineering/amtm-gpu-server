@@ -17,22 +17,30 @@ re-run, not a template edit.
 ```yaml
 vllm_instances:
   - name: gemma
-    model: "CHANGEME/gemma-4-26b-a4b"   # confirm exact HF repo id before deploying
+    model_path: "/opt/models/gemma-4-26b-a4b"   # full local repo, already on the host
     port: 8001
     gpu_memory_utilization: 0.6
     max_model_len: 8192
-    extra_args: []
+    extra_args:
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
 
   - name: llama
-    model: "meta-llama/Llama-3.2-3B-Instruct"
+    model_path: "/opt/models/llama-3.2-3b-instruct"
     port: 8002
     gpu_memory_utilization: 0.3
     max_model_len: 8192
-    extra_args: []
+    extra_args:
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
 ```
 
-Every field is optional except `name` and `model` — the role has sane defaults for
-port allocation, memory utilization, etc. defined in `roles/vllm/defaults/main.yml`.
+`name` and `model_path` are required; everything else has a default in
+`roles/vllm/defaults/main.yml`. `model_path` must point at a full local Hugging Face
+repo already present on the host — see
+[model-tuning-and-placement.md](model-tuning-and-placement.md) for the expected
+layout, disk/permission guidance, and why `extra_args` defaults to those two flags
+for a chat-focused deployment.
 
 ## GPU memory split
 
@@ -58,17 +66,20 @@ ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --tags vll
 This re-renders `docker-compose.yml` and runs `docker compose up -d`, which recreates
 only the containers whose config actually changed.
 
-## Model IDs and licensing
+## Model source: local mount, not download
 
-Both Gemma and Llama weights are gated on Hugging Face and require an accepted license
-+ an HF token available on the target host (`HUGGING_FACE_HUB_TOKEN`, injected via the
-`vllm_hf_token` variable — keep this in an Ansible Vault–encrypted file, never commit it
-in plaintext). The `CHANGEME` placeholder in the Gemma model ID above must be replaced
-with the exact repo ID/revision you've confirmed access to before running against any
-real host.
+This repo assumes the full model repository is already present on the host — the
+`vllm` role only bind-mounts `model_path` read-only into the container at
+`/models/<name>` and passes that path to `--model`. It never contacts Hugging Face Hub
+(`HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` are set in the container to guarantee
+that), so there's no HF token, license gate, or network dependency at deploy time —
+getting the model repo onto the host in the first place is out of scope for this role.
+See [model-tuning-and-placement.md](model-tuning-and-placement.md) for the directory
+layout the role expects and validates before every deploy.
 
 ## Adding a third instance / swapping a model
 
-Add another entry to `vllm_instances` with a unique `name` and `port`, and reduce the
-other entries' `gpu_memory_utilization` so the total plus headroom stays under 1.0. The
-role and compose template require no changes.
+Copy the new model's full repo onto the host, then add an entry to `vllm_instances`
+with a unique `name`, `port`, and its `model_path`, and reduce the other entries'
+`gpu_memory_utilization` so the total plus headroom stays under 1.0. The role and
+compose template require no changes.

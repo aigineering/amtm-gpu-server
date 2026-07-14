@@ -7,6 +7,50 @@
       vllm_instances is empty. Define at least one instance in
       inventories/<env>/group_vars/all.yml — see docs/vllm-configuration.md.
 
+# Model repos are expected to already exist on the host (copied there out of band) —
+# this role only mounts them, it never downloads anything. Validate that expectation
+# before rendering compose, rather than letting vLLM fail deep inside a container.
+- name: Check each configured model path exists on the host
+  ansible.builtin.stat:
+    path: "{{ item.model_path }}"
+  register: vllm_model_path_check
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.model_path }})"
+
+- name: Fail if any configured model path is missing
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isdir
+    fail_msg: >-
+      model_path {{ item.item.model_path }} for instance '{{ item.item.name }}' does
+      not exist or is not a directory on this host. Copy the full model repository
+      there before deploying — see docs/model-tuning-and-placement.md.
+  loop: "{{ vllm_model_path_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Check each model path contains a full HF-format repo (config.json present)
+  ansible.builtin.stat:
+    path: "{{ item.model_path }}/config.json"
+  register: vllm_model_config_check
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Fail if config.json is missing (looks like weights-only, not a full repo)
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: >-
+      {{ item.item.model_path }} has no config.json. This role expects the FULL
+      Hugging Face repo (config.json, tokenizer files, generation_config.json,
+      safetensors) at model_path, not just raw weight files — see
+      docs/model-tuning-and-placement.md.
+  loop: "{{ vllm_model_config_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
 # GPU capacity preflight: the customer's GPU may already be running other workloads
 # before this playbook ever touches the box. This is read-only detection (no gate
 # needed) but must run before we commit to a memory split. See
@@ -59,12 +103,6 @@
 - name: Ensure vLLM deploy directory exists
   ansible.builtin.file:
     path: "{{ vllm_deploy_dir }}"
-    state: directory
-    mode: "0755"
-
-- name: Ensure Hugging Face cache directory exists
-  ansible.builtin.file:
-    path: "{{ vllm_hf_cache_dir }}"
     state: directory
     mode: "0755"
 

@@ -11,12 +11,16 @@ services:
     ports:
       - "{{ instance.port }}:{{ instance.port }}"
     environment:
-      HUGGING_FACE_HUB_TOKEN: "{{ vllm_hf_token }}"
+      # Model repo is already on disk — never fall back to a Hugging Face Hub call.
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
     volumes:
-      - "{{ vllm_hf_cache_dir }}:/root/.cache/huggingface"
+      - "{{ instance.model_path }}:/models/{{ instance.name }}:ro"
     command:
       - "--model"
-      - "{{ instance.model }}"
+      - "/models/{{ instance.name }}"
+      - "--served-model-name"
+      - "{{ instance.served_model_name | default(instance.name) }}"
       - "--port"
       - "{{ instance.port | string }}"
       - "--gpu-memory-utilization"

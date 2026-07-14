@@ -17,6 +17,9 @@ one-off, hand-configured box.
   server edit.
 - **Two-stage rollout**: we validate the automation end-to-end on a disposable AWS
   test server first, then apply the same automation to the customer's real server.
+- **Models are mounted, not downloaded**: the full model files are assumed to already
+  be present on the server; the automation points each vLLM instance at the local copy
+  rather than fetching anything over the network at deploy time.
 
 ## How it works, at a glance
 
@@ -94,10 +97,11 @@ automation with a different setting is how we'll compare configurations.
 ## Current status
 
 - Automation scaffolding is in place and reviewed; not yet run against real hardware.
-- Exact model versions (Hugging Face repo IDs) are intentionally left as placeholders
-  until we're ready to pin them.
+- The exact on-disk location of each model repo is intentionally left as a placeholder
+  until we confirm it against the real server.
 - Next step: provision the AWS test server and do a first validation run in
   report-only mode.
 
-See [architecture.md](architecture.md) and [host-safety-model.md](host-safety-model.md)
-for the engineering-level detail behind this summary.
+See [architecture.md](architecture.md), [host-safety-model.md](host-safety-model.md),
+and [model-tuning-and-placement.md](model-tuning-and-placement.md) for the
+engineering-level detail behind this summary.
