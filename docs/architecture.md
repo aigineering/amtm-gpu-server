@@ -20,7 +20,7 @@ each process pre-allocates for its KV cache and weights.
 │                                                                               │
 │  ┌────────────────────────┐        ┌────────────────────────┐               │
 │  │ vllm-gemma (container) │        │ vllm-llama (container) │               │
-│  │ gemma-4 26B-A4B         │        │ llama-3.2-3b            │               │
+│  │ gemma-4 26B-A4B AWQ-4bit│        │ llama-3.2-3b AWQ-INT4   │               │
 │  │ --gpu-memory-utilization│        │ --gpu-memory-utilization│               │
 │  │   0.6 (default)         │        │   0.3 (default)         │               │
 │  │ :8001                   │        │ :8002                   │               │

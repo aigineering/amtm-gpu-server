@@ -22,7 +22,7 @@ have no internet access by default).
 repo, e.g.:
 
 ```
-/opt/models/gemma-4-26b-a4b/
+/opt/models/gemma-4-26b-a4b-it-awq-4bit/
 ├── config.json
 ├── generation_config.json
 ├── tokenizer.json
@@ -43,7 +43,7 @@ vLLM startup error at that point.
   `/opt/models/<name>` — so re-running the `vllm` tag to change a serving flag never
   touches model data, and vice versa.
 - Use **versioned subdirectories** if you expect to compare model revisions side by
-  side, e.g. `/opt/models/gemma-4-26b-a4b-v1`, `.../-v2`. Point `model_path` at
+  side, e.g. `/opt/models/gemma-4-26b-a4b-it-awq-4bit-v1`, `.../-v2`. Point `model_path` at
   whichever is under test rather than overwriting one directory in place — that way a
   bad benchmark run never silently destroys the previous known-good copy.
 - **Storage type matters for iteration speed, not just steady-state serving.** Model
@@ -53,9 +53,9 @@ vLLM startup error at that point.
 - **Permissions**: the `vllm/vllm-openai` image runs as root inside the container by
   default and the compose template mounts `model_path` **read-only** (`:ro`) — the
   container never needs write access to it, and shouldn't have it.
-- Rough disk footprint at bf16 (confirm against the actual repo you copy over): Llama
-  3.2 3B ≈ 6–7 GB; a 26B-total MoE model like Gemma 4 is roughly 50+ GB depending on
-  which tensors are stored at what precision. Leave real headroom on the volume.
+- Rough disk footprint for the current AWQ 4-bit repos (confirm against the actual
+  repo you copy over): Llama 3.2 3B AWQ-INT4 ≈ 2–3 GB; Gemma 4 26B-A4B AWQ-4bit ≈
+  15–18 GB. Leave real headroom on the volume.
 
 ## Tuning vLLM for chat, not batch
 

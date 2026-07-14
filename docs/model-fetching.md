@@ -47,9 +47,11 @@ reopens) only fetches what's still missing.
 
 ## Credentials (gated repos)
 
-Gemma and Llama weights are gated on Hugging Face and need an access token during
-fetch (never during serving — `vllm` role runs fully offline). Store it via
-Ansible Vault, not in plaintext:
+The current `repo_id`s (cyankiwi's AWQ community quantizations) are public and
+need no token. If you switch to a gated repo (e.g. the original `meta-llama/…`
+or `google/…` weights), the fetch needs an access token (never during serving —
+the `vllm` role runs fully offline). Store it via Ansible Vault, not in
+plaintext:
 
 ```bash
 cd ansible

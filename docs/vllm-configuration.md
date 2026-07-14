@@ -17,7 +17,7 @@ re-run, not a template edit.
 ```yaml
 vllm_instances:
   - name: gemma
-    model_path: "/opt/models/gemma-4-26b-a4b"   # full local repo, already on the host
+    model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"   # full local repo, already on the host
     port: 8001
     gpu_memory_utilization: 0.6
     max_model_len: 8192
@@ -26,7 +26,7 @@ vllm_instances:
       - "--enable-chunked-prefill"
 
   - name: llama
-    model_path: "/opt/models/llama-3.2-3b-instruct"
+    model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"
     port: 8002
     gpu_memory_utilization: 0.3
     max_model_len: 8192

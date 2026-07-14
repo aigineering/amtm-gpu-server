@@ -29,7 +29,7 @@ model_fetch_force: false
 vllm_instances:
   - name: gemma
     model_path: "CHANGEME"  # local path to the full model repo on this host
-    repo_id: "CHANGEME/gemma-4-26b-a4b"  # confirm exact HF repo id before fetching
+    repo_id: "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
     revision: main
     port: 8001
     gpu_memory_utilization: 0.6
@@ -40,7 +40,7 @@ vllm_instances:
 
   - name: llama
     model_path: "CHANGEME"  # local path to the full model repo on this host
-    repo_id: "meta-llama/Llama-3.2-3B-Instruct"
+    repo_id: "cyankiwi/Llama-3.2-3B-Instruct-AWQ-INT4"
     revision: main
     port: 8002
     gpu_memory_utilization: 0.3
