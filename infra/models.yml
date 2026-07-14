@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  gpu-vllm-setup AWS test env, models layer: ONLY the EBS volume that holds
+  /opt/models. In its own stack so that a normal teardown (env.sh down) never
+  deletes fetched models. Deleted only by 'env.sh down --all' or recreated by
+  'env.sh reset --wipe-models'.
+
+Parameters:
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: AZ for the volume; the instance must launch in the same AZ.
+  ModelsVolumeSizeGiB:
+    Type: Number
+    Default: 100
+
+Resources:
+  ModelsVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Size: !Ref ModelsVolumeSizeGiB
+      VolumeType: gp3
+      Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+
+Outputs:
+  ModelsVolumeId:
+    Value: !Ref ModelsVolume
+    Export:
+      Name: !Sub "${AWS::StackName}-ModelsVolumeId"
+  AvailabilityZone:
+    Value: !Ref AvailabilityZone
+    Export:
+      Name: !Sub "${AWS::StackName}-AvailabilityZone"

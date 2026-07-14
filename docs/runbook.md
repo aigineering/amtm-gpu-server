@@ -30,8 +30,11 @@ it behaves if the window isn't open yet.
 
 ## 3. First run: clean AWS L40S box
 
-1. Launch an EC2 instance from the L40S family (e.g. `g6e.xlarge`) with RHEL 9.
-2. Fill in `ansible/inventories/aws-test/hosts.yml` with its IP/DNS and SSH user.
+1. Provision the box: `infra/env.sh up` (g6e.xlarge, RHEL 9, models EBS volume
+   mounted at `/opt/models`, Elastic IP) — see [aws-test-env.md](aws-test-env.md).
+2. Put the printed Elastic IP into `ansible/inventories/aws-test/hosts.yml`
+   (`ansible_host`; the key file already points at the repo's `.ssh/aws_key`).
+   The IP is stable across resets, so this is a one-time step.
 3. Confirm `nvidia_driver_manage: true` in
    `ansible/inventories/aws-test/group_vars/all.yml` (default) — this box is disposable,
    so a from-scratch driver install is expected.
@@ -48,10 +51,12 @@ it behaves if the window isn't open yet.
    ansible gpu_servers -i inventories/aws-test/hosts.yml -m reboot -b
    ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
    ```
-7. Verify both vLLM endpoints:
+7. Verify both vLLM endpoints. The test box's security group only opens SSH, so
+   go through a tunnel:
    ```bash
-   curl http://<host>:8001/v1/models   # gemma
-   curl http://<host>:8002/v1/models   # llama
+   ssh -i .ssh/aws_key -L 8001:localhost:8001 -L 8002:localhost:8002 ec2-user@<host> -N &
+   curl http://localhost:8001/v1/models   # gemma
+   curl http://localhost:8002/v1/models   # llama
    ```
 
 ## 4. Before touching the customer server
@@ -107,5 +112,7 @@ ansible gpu_servers -i inventories/<env>/hosts.yml -m shell \
 ```
 
 Driver and Docker installs are not automatically rolled back — they're treated as host
-state, not deploy state. To fully tear down a host, terminate the AWS instance (test
-env) or coordinate a manual driver/Docker removal with the customer.
+state, not deploy state. To fully tear down a host: on the test env, use
+`infra/env.sh reset` (fresh OS, models kept) or `infra/env.sh down` (everything
+gone, models volume included) — see [aws-test-env.md](aws-test-env.md); on the
+customer server, coordinate a manual driver/Docker removal with the customer.

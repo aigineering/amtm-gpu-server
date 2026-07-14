@@ -44,7 +44,13 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 │   ├── vllm-configuration.md
 │   ├── model-tuning-and-placement.md  # model placement + chat-focused tuning
 │   ├── model-fetching.md      # optional, opt-in: pulling models onto the host
+│   ├── aws-test-env.md        # provisioning/reset/teardown of the AWS test box
 │   └── runbook.md             # step-by-step operational procedures
+├── infra/                     # CloudFormation + env.sh for the AWS test env
+│   ├── persistent.yml         # key, SG, EIP (survives resets)
+│   ├── models.yml             # models EBS volume (survives resets; blank via --wipe-models)
+│   ├── instance.yml           # the RHEL GPU instance (disposable)
+│   └── env.sh                 # up / reset [--wipe-models] / stop / start / status / ssh / down
 └── ansible/
     ├── ansible.cfg
     ├── requirements.yml       # required collections
@@ -71,10 +77,21 @@ Docker, and firewall config from scratch. Full background:
 
 ### 1.1 Launch the instance
 
-- Instance type: `g6e.xlarge` or larger (1× NVIDIA L40S, 48 GB VRAM)
-- AMI: RHEL 9 (the `common` role hard-fails on anything else)
-- Disk: ≥ 200 GB gp3 — the Gemma MoE repo alone is ~50 GB, plus the vLLM image (~10 GB)
-- Security group: TCP 22 from your machine; TCP 8001–8002 from wherever you'll test
+Provisioning is scripted — see [docs/aws-test-env.md](docs/aws-test-env.md) for
+the full design (three CloudFormation stacks: key/SG/EIP + models volume +
+disposable instance):
+
+```bash
+infra/env.sh up                   # g6e.xlarge (1× L40S 48GB), RHEL 9, /opt/models on EBS
+infra/env.sh reset                # clean OS; models volume and IP kept
+infra/env.sh reset --wipe-models  # clean OS + blank models volume
+infra/env.sh down                 # full teardown, incl. models volume
+```
+
+`up` prints the Elastic IP to put in `inventories/aws-test/hosts.yml` (once —
+it's stable across resets). Note the SG opens SSH to 0.0.0.0/0; ports 8001–8002
+are not exposed — test the endpoints through an SSH tunnel
+(`ssh -L 8001:localhost:8001 …`) or add ingress rules deliberately.
 
 ### 1.2 Prepare the control machine
 
@@ -84,19 +101,20 @@ cd ansible
 ansible-galaxy collection install -r requirements.yml   # community.docker, ansible.posix
 ```
 
-Fill in `inventories/aws-test/hosts.yml` (`ansible_host`, key file), then confirm
-SSH works before anything else:
+Fill in `ansible_host` in `inventories/aws-test/hosts.yml` (the key file already
+points at the repo's `.ssh/aws_key`), then confirm SSH works before anything else:
 
 ```bash
-chmod 600 ~/.ssh/<your-key>.pem
+chmod 600 ../.ssh/aws_key
 ansible all -i inventories/aws-test/hosts.yml -m ping
 ```
 
 ### 1.3 Fetch the models (one-time per box)
 
-`site.yml` never downloads models — they must already be on disk. Confirm the Gemma
-`repo_id` in `inventories/aws-test/group_vars/all.yml` (it's a `CHANGEME`), store
-your HF token in Vault, then run the fetch playbook:
+`site.yml` never downloads models — they must already be on disk. The `repo_id`s
+in `inventories/aws-test/group_vars/all.yml` point at the current AWQ builds
+(`cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit`, `cyankiwi/Llama-3.2-3B-Instruct-AWQ-INT4`).
+Store your HF token in Vault, then run the fetch playbook:
 
 ```bash
 cat > inventories/aws-test/group_vars/vault.yml <<'EOF'

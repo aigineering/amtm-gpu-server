@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  gpu-vllm-setup AWS test env, ephemeral layer: the RHEL GPU instance plus
+  volume/EIP attachments. Deleting and recreating this stack ("reset") gives a
+  clean OS while the models volume and IP survive in the persistent stack.
+
+Parameters:
+  PersistentStackName:
+    Type: String
+    Default: gpu-vllm-test-persistent
+  ModelsStackName:
+    Type: String
+    Default: gpu-vllm-test-models
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: RHEL 9 x86_64 AMI (looked up by infra/env.sh)
+  InstanceType:
+    Type: String
+    Default: g6e.xlarge
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Must be in the same AZ as the persistent stack's models volume.
+  RootVolumeSizeGiB:
+    Type: Number
+    Default: 100
+    Description: Room for the NVIDIA driver, Docker, and the vLLM image.
+
+Resources:
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName:
+        Fn::ImportValue: !Sub "${PersistentStackName}-KeyName"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - Fn::ImportValue: !Sub "${PersistentStackName}-SecurityGroupId"
+      MetadataOptions:
+        HttpTokens: required
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref RootVolumeSizeGiB
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            # Format-if-blank and mount the persistent models volume at /opt/models.
+            # Runs on first boot only; idempotent anyway (fstab guard, blkid check).
+            set -uo pipefail
+            VOL_ID="${VolId}"
+            DEV="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$(echo $VOL_ID | tr -d -)"
+            # The VolumeAttachment may complete after boot starts; wait up to 5 min.
+            for i in $(seq 1 60); do
+              [ -e "$DEV" ] && break
+              sleep 5
+            done
+            if [ ! -e "$DEV" ]; then
+              echo "models volume never appeared at $DEV" >&2
+              exit 1
+            fi
+            if ! blkid "$DEV" >/dev/null 2>&1; then
+              mkfs.xfs "$DEV"
+            fi
+            mkdir -p /opt/models
+            UUID=$(blkid -s UUID -o value "$DEV")
+            if ! grep -q "$UUID" /etc/fstab; then
+              echo "UUID=$UUID /opt/models xfs defaults,nofail 0 2" >> /etc/fstab
+            fi
+            mount -a
+          - VolId:
+              Fn::ImportValue: !Sub "${ModelsStackName}-ModelsVolumeId"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+
+  ModelsVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref Instance
+      VolumeId:
+        Fn::ImportValue: !Sub "${ModelsStackName}-ModelsVolumeId"
+      Device: /dev/sdf
+
+  EipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref Instance
+      AllocationId:
+        Fn::ImportValue: !Sub "${PersistentStackName}-EipAllocationId"
+
+Outputs:
+  InstanceId:
+    Value: !Ref Instance
+  PublicIp:
+    Value:
+      Fn::ImportValue: !Sub "${PersistentStackName}-EipAddress"

@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  gpu-vllm-setup AWS test env, persistent layer: imported SSH key, security
+  group, and Elastic IP. Survives instance resets; deleted on teardown. The
+  models EBS volume lives in its own stack (models.yml) so teardown never
+  touches it.
+
+Parameters:
+  PublicKeyMaterial:
+    Type: String
+    Description: Contents of .ssh/aws_key.pub (passed by infra/env.sh)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-key"
+      PublicKeyMaterial: !Ref PublicKeyMaterial
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: gpu-vllm test box - SSH from anywhere
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH from anywhere (test env only)
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-sg"
+
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-eip"
+
+Outputs:
+  KeyName:
+    Value: !Ref KeyPair
+    Export:
+      Name: !Sub "${AWS::StackName}-KeyName"
+  SecurityGroupId:
+    Value: !GetAtt SecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupId"
+  EipAllocationId:
+    Value: !GetAtt ElasticIp.AllocationId
+    Export:
+      Name: !Sub "${AWS::StackName}-EipAllocationId"
+  EipAddress:
+    Value: !Ref ElasticIp
+    Export:
+      Name: !Sub "${AWS::StackName}-EipAddress"

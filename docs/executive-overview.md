@@ -97,10 +97,12 @@ automation with a different setting is how we'll compare configurations.
 ## Current status
 
 - Automation scaffolding is in place and reviewed; not yet run against real hardware.
-- The exact on-disk location of each model repo is intentionally left as a placeholder
-  until we confirm it against the real server.
-- Next step: provision the AWS test server and do a first validation run in
-  report-only mode.
+- The exact on-disk location of each model repo on the customer's server is
+  intentionally left as a placeholder until we confirm it against the real server.
+- Provisioning of the AWS test server is scripted (one command up, one command
+  reset to a clean machine, one command teardown), with model storage on a
+  separate disk so a machine reset doesn't require re-downloading models.
+- Next step: bring up the AWS test server and do the first full run there.
 
 See [architecture.md](architecture.md), [host-safety-model.md](host-safety-model.md),
 and [model-tuning-and-placement.md](model-tuning-and-placement.md) for the

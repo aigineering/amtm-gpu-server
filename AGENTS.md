@@ -45,6 +45,12 @@ against the `customer` inventory as production deploys, not local dev commands.
   customer box that already has some things installed." Tasks that aren't naturally
   idempotent need explicit `creates:`/`when:` guards.
 
+- **The AWS test box is provisioned by `infra/env.sh`** (three CloudFormation
+  stacks; see [docs/aws-test-env.md](docs/aws-test-env.md)), pinned to account
+  088070740738. `reset` is cheap and safe (keeps the models volume); `down` and
+  `reset --wipe-models` destroy fetched models — don't run those without the
+  user asking, even though they prompt for confirmation.
+
 ## Conventions
 
 - Ansible-lint should pass (`ansible-lint ansible/`) before considering a role done.
