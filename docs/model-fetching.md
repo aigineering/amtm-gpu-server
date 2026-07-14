@@ -35,7 +35,8 @@ or not the box currently has internet access. So fetching is its own playbook,
 ```bash
 cd ansible
 # confirm with IT that the egress window is open, then:
-ansible-playbook -i inventories/customer/hosts.yml playbooks/fetch-models.yml
+ansible-playbook -i inventories/customer/hosts.yml playbooks/fetch-models.yml \
+  --ask-vault-pass -e @inventories/customer/group_vars/vault.yml
 ```
 
 There's little value in `--check` here — most of the substantive tasks are shell
@@ -57,8 +58,12 @@ ansible-vault create inventories/customer/group_vars/vault.yml
 ```
 
 `group_vars/all.yml` already references `vault_hf_token` via
-`model_fetch_hf_token: "{{ vault_hf_token | default('') }}"`. Run the fetch playbook
-with `--ask-vault-pass` (or `--vault-password-file`). `vault.yml` is already
+`model_fetch_hf_token: "{{ vault_hf_token | default('') }}"`.
+
+Note that Ansible only auto-loads `group_vars/` files named after an inventory group
+(`all`, `gpu_servers`), so `vault.yml` must be passed explicitly with
+`-e @inventories/<env>/group_vars/vault.yml`, alongside `--ask-vault-pass` (or
+`--vault-password-file`) — as shown in the command above. `vault.yml` is already
 git-ignored (see `.gitignore`) so it can't be committed by accident.
 
 ## Handling large downloads

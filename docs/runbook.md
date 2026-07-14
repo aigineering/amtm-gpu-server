@@ -19,7 +19,8 @@ on disk at each instance's `model_path` (see
 ```bash
 # only during a window the host's egress is confirmed open (customer hosts have
 # none by default) — see model-fetching.md
-ansible-playbook -i inventories/<env>/hosts.yml playbooks/fetch-models.yml
+ansible-playbook -i inventories/<env>/hosts.yml playbooks/fetch-models.yml \
+  --ask-vault-pass -e @inventories/<env>/group_vars/vault.yml
 ```
 
 This is a separate, opt-in playbook precisely because the customer host's internet
@@ -44,7 +45,7 @@ it behaves if the window isn't open yet.
    ```
 6. If the driver role reports `reboot_required: true`, reboot manually and re-run:
    ```bash
-   ansible aws_test -i inventories/aws-test/hosts.yml -m reboot -b
+   ansible gpu_servers -i inventories/aws-test/hosts.yml -m reboot -b
    ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
    ```
 7. Verify both vLLM endpoints:
@@ -101,7 +102,7 @@ ansible-playbook -i inventories/<env>/hosts.yml playbooks/site.yml --tags vllm
 ## 7. Rollback / teardown
 
 ```bash
-ansible <env> -i inventories/<env>/hosts.yml -m shell \
+ansible gpu_servers -i inventories/<env>/hosts.yml -m shell \
   -a "cd /opt/vllm && docker compose down" -b
 ```
 
