@@ -140,7 +140,20 @@ comparisons only if ALL of these hold:
 If any fail, don't conclude "offloading doesn't help" — intensify and re-run.
 Levers, in order: the harness's `--no-early-stop` flag, deeper conversations
 (`benchmark_multi_turn_turns_min/max`), more conversations/clients
-(`benchmark_multi_turn_clients`, `benchmark_multi_turn_num_conversations`).
+(`benchmark_multi_turn_tiers`, `benchmark_multi_turn_conversations_per_client`).
+
+**Where `-kv` improvements can appear (expected signature).** ShareGPT and
+context runs have (near-)zero prefix reuse, so offloading *cannot* help there
+— those rows double as the idle-overhead control (expect flat or slightly
+worse; a consistent regression is itself a finding). Gains are only possible
+in the multi-turn rows, and only at tiers whose conversation working set
+oversubscribes the GPU KV pool: c1/c5 fit entirely (control rows, expect
+flat); c20 is borderline; **c50 is the main event** (~150 conversations ≈
+2–3× the pool) — look for lower TTFT mean/p99 and higher req/s vs the off
+run, corroborated by nonzero offload store/load counters and a higher
+prefix-cache hit rate in the metrics snapshot. Best possible outcome:
+identical everywhere except multi-turn c20/c50 — offloading helps under
+pressure and costs nothing when idle.
 
 ### Multi-turn conversations (second harness)
 
