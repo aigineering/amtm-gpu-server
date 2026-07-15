@@ -23,7 +23,8 @@ from pathlib import Path
 RESULTS_DIR = Path(__file__).parent / "results"
 
 # vllm bench serve result filenames: <scenario>-<instance>-c<tier>.json
-FILENAME_RE = re.compile(r"^(?P<scenario>solo|colocated)-(?P<name>.+)-c(?P<tier>\d+)\.json$")
+# context = solo long-input capacity run; contextpair = both endpoints at once.
+FILENAME_RE = re.compile(r"^(?P<scenario>solo|colocated|context|contextpair)-(?P<name>.+)-c(?P<tier>\d+)\.json$")
 
 # Metric keys we surface if present (tolerant to vllm version differences).
 METRIC_COLUMNS = [

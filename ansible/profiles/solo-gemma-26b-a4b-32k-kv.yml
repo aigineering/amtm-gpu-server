@@ -1,0 +1,25 @@
+---
+# Stage-1 campaign profile (docs/benchmarking.md): gemma MoE 26B-A4B AWQ solo,
+# 32k context, KV offloading to RAM: ON (24GB). Single instance at 0.9 GPU utilization.
+profile_name: solo-gemma-26b-a4b-32k-kv
+
+benchmark_scenarios: [solo]
+
+vllm_instances:
+  - name: gemma-26b-a4b
+    model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"
+    repo_id: "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+    revision: main
+    port: 8001
+    gpu_memory_utilization: 0.9
+    max_model_len: 32768
+    extra_args:
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
+      - "--limit-mm-per-prompt"
+      - '{"image": 2, "video": 0}'
+      # Native CPU KV offloading (vLLM >=0.14 flags); 24GB of the host's 64GB.
+      - "--kv-offloading-backend"
+      - "native"
+      - "--kv-offloading-size"
+      - "24"

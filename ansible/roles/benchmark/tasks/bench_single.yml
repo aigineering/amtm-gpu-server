@@ -33,6 +33,37 @@
   async: 7200
   poll: 15
 
+# Context-stress: same endpoint/tier, random long inputs near max_model_len.
+# Zero prefix reuse by design — the capacity-mapping worst case.
+- name: "Context {{ bench_instance.name }} c{{ bench_tier }} ({{ bench_instance.max_model_len }} ctx)"
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm --network host
+      -v /opt/models:/models:ro
+      -v {{ benchmark_run_dir }}:/results
+      {% if vllm_api_key | length > 0 %}-e OPENAI_API_KEY={{ vllm_api_key }}{% endif %}
+      --entrypoint vllm {{ vllm_image }} bench serve
+      --backend openai-chat
+      --base-url http://localhost:{{ bench_instance.port }}
+      --endpoint /v1/chat/completions
+      --model /models/{{ bench_instance.model_path | basename }}
+      --served-model-name {{ bench_instance.served_model_name | default(bench_instance.name) }}
+      --dataset-name random
+      --random-input-len {{ (bench_instance.max_model_len * benchmark_context_input_fraction) | int }}
+      --random-output-len {{ benchmark_context_output_len }}
+      --num-prompts {{ [bench_tier * benchmark_context_prompts_per_user, 4] | max }}
+      --max-concurrency {{ bench_tier }}
+      --seed {{ benchmark_seed }}
+      --percentile-metrics ttft,tpot,itl,e2el
+      --metric-percentiles 50,95,99
+      --save-result --result-dir /results
+      --result-filename context-{{ bench_instance.name }}-c{{ bench_tier }}.json
+    creates: "{{ benchmark_run_dir }}/context-{{ bench_instance.name }}-c{{ bench_tier }}.json"
+  changed_when: true
+  async: 7200
+  poll: 15
+  when: benchmark_context_stress | bool and bench_scenario == 'solo'
+
 - name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
   ansible.builtin.shell:
     cmd: >-

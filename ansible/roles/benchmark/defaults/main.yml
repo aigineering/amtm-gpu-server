@@ -35,6 +35,16 @@ benchmark_seed: 42
 # that validates the two-models-on-one-GPU claim).
 benchmark_scenarios: [solo, colocated]
 
+# Context-stress runs (capacity mapping, docs/benchmarking.md): random
+# long-input requests at ~80% of each instance's max_model_len — worst-case
+# KV pressure with zero prefix reuse. Answers "does this context window fit,
+# at how many users". Fewer prompts per user than sharegpt runs: each request
+# is enormous.
+benchmark_context_stress: true
+benchmark_context_prompts_per_user: 2
+benchmark_context_input_fraction: 0.8
+benchmark_context_output_len: 256
+
 # Multi-turn conversation benchmark (vLLM's benchmark_serving_multi_turn.py,
 # fetched by the fetch playbook). Runs with all instances serving. num_clients
 # = concurrent simulated users.

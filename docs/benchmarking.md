@@ -287,27 +287,25 @@ minus bge-m3, an embedding model outside this campaign).
 | Multi-turn (synthetic, controllable turns/prefix) | Cache-economy under growing histories: prefix-cache hit rates, deep-conversation latency, and **the KV-offloading evaluation** — offloading's value is reuse-after-eviction (idle conversation evicted to RAM, pulled back on the next turn), which only this workload produces | Input depth is what we configure it to be (~2–7k tokens typical) |
 | Random long-input (`vllm bench serve --dataset-name random`) | **Capacity mapping — a first-class deliverable**: hard memory limits per model × context × concurrency, e.g. "does 32k context + two models fit on this GPU, at how many users" | Zero prefix reuse — deliberately worst-case; not a realistic-traffic number |
 
-### Funnel stages
+### Campaign stages (Simon's design, 2026-07-15)
 
-1. **Screening** (8 solo profiles, ~2–3h): each model alone at ~0.9 GPU
-   utilization, 8k context, tiers 1+20, ShareGPT. Ranks the catalog; exposes
-   quantizations that are non-viable out of the gate (31B FP8 ≈ 33GB weights
-   leaves ~7GB KV at 0.9).
-2. **Deep-dive** (champions + the 3B): full tiers × contexts **8k/16k/32k**.
-   Random long-input runs map each config's capacity limits (offload off).
-   KV-offload on/off measured on the multi-turn workload for KV-constrained
-   configs, plus ONE idle-overhead control (26B AWQ @ 8k, offload on) to price
-   always-on offloading where it isn't needed.
-3. **Co-location** (the product decision): chosen-31B + 3B and 26B-A4B + 3B as
-   two-instance profiles with tuned splits — full suite, multi-turn, SLO
-   verdicts, and pair capacity runs (including the 32k question above). AWQ
-   31B pairing starts near 0.72/0.18; an FP8 31B likely cannot co-locate at
-   all — worth one run to prove either way.
+1. **Parameter baseline — two model types** (12 profiles, committed as
+   `profiles/solo-gemma-{31b,26b-a4b}-{8k,16k,32k}[-kv].yml`): the dense 31B
+   AWQ and the MoE 26B-A4B AWQ, solo at 0.9 GPU utilization, full matrix of
+   context (8k/16k/32k) × KV offloading (off / 24GB native CPU offload,
+   `--kv-offloading-backend native --kv-offloading-size 24`). Establishes how
+   context and offloading affect each model *type* with everything else held
+   constant. Each profile runs the tier sweep, ShareGPT + context-stress +
+   multi-turn (~30–45 min/profile; ~6–9h total, resumable).
+2. **Catalog pass — all 8 servable models** (2 configs each: 8k and 32k, KV
+   setting per stage-1's verdict). Ranks the catalog and picks the 3B
+   companion. Profiles written after stage 1 concludes.
+3. **Co-location — top 2–4 models from stage 2 + the chosen 3B**: pair
+   profiles, again across all context sizes × KV on/off, full suite including
+   the parallel pair capacity runs (`contextpair-*` — the "does 32k + two
+   models fit, at how many users" answer) and SLO verdicts.
 
-Profile naming: `solo-<model>[-<ctx>][-kvoff]`, `pair-<big>-<small>`.
-Implementation gaps to close before stage 2: the random/context-stress run
-type in the benchmark role, and the KV-offload flag in profiles (exact vLLM
-connector syntax verified against the image at implementation).
+Profile naming: `solo-<model>-<ctx>[-kv]`, `pair-<big>-<small>-<ctx>[-kv]`.
 
 ## Decisions log
 
@@ -324,7 +322,7 @@ connector syntax verified against the image at implementation).
 | 2026-07-15 | Implementation stays playbook-based (Ansible roles/playbooks, no side tooling) | Same operating model as the rest of the repo; agentless, works against the offline customer box |
 | 2026-07-15 | Second harness: vLLM's `benchmark_serving_multi_turn.py`, **fetched pinned to the models volume** (revised from "vendor into repo") | Only tool that replays real multi-turn sessions; fetching it during the egress window (pinned to `vllm_bench_pin`) gives the same offline guarantee without carrying third-party code in the repo |
 | 2026-07-15 | Open-loop (Poisson) load generation; p99 recorded alongside p95 | Closed-loop generators self-throttle and flatter results; SLO practice judges tails |
-| 2026-07-15 | Evaluation campaign: funnel (screen → deep-dive → co-locate), contexts 8k/16k/32k | Full 8-model cartesian ≈ 30h+ GPU mostly measuring dead configs; each stage's results pick the next stage's inputs |
+| 2026-07-15 | Evaluation campaign restructured per Simon: (1) ctx×KV baseline on the two AWQ gemmas, (2) all models at 8k+32k with the stage-1 KV verdict, (3) top 2–4 + 3B pairs across all ctx×KV | Stage 1 isolates parameter sensitivity per model type (dense vs MoE) before spending GPU-hours on the full catalog; each stage's results parameterize the next |
 | 2026-07-15 | Capacity mapping via random long-input is a first-class deliverable (Simon) | The client must know hard memory limits — "32k + two models: fits or not, at how many users" — answered directly by worst-case no-reuse runs |
 | 2026-07-15 | KV offloading evaluated separately, on the multi-turn workload | Offloading's value is reuse-after-eviction, which only multi-turn traffic produces; random no-reuse runs can't show it. Constrained configs + one idle-overhead control |
 | 2026-07-15 | Multi-turn harness deps (pandas/xlsxwriter) installed to pylibs/ on the models volume via the container's pip | vLLM image doesn't ship them; container pip = right ABI; volume placement survives resets and is offline afterwards |

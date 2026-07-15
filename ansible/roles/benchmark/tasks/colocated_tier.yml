@@ -58,3 +58,50 @@
   loop: "{{ vllm_instances }}"
   loop_control:
     label: "{{ item.name }}"
+
+# Pair capacity mapping: random long inputs against BOTH endpoints at once —
+# answers "does <ctx> + two models fit on this GPU, at how many users".
+- name: "Context-pair c{{ bench_tier }}: launch long-input bench per endpoint (parallel)"
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm --network host
+      -v /opt/models:/models:ro
+      -v {{ benchmark_run_dir }}:/results
+      {% if vllm_api_key | length > 0 %}-e OPENAI_API_KEY={{ vllm_api_key }}{% endif %}
+      --entrypoint vllm {{ vllm_image }} bench serve
+      --backend openai-chat
+      --base-url http://localhost:{{ item.port }}
+      --endpoint /v1/chat/completions
+      --model /models/{{ item.model_path | basename }}
+      --served-model-name {{ item.served_model_name | default(item.name) }}
+      --dataset-name random
+      --random-input-len {{ (item.max_model_len * benchmark_context_input_fraction) | int }}
+      --random-output-len {{ benchmark_context_output_len }}
+      --num-prompts {{ [bench_tier * benchmark_context_prompts_per_user, 4] | max }}
+      --max-concurrency {{ bench_tier }}
+      --seed {{ benchmark_seed }}
+      --percentile-metrics ttft,tpot,itl,e2el
+      --metric-percentiles 50,95,99
+      --save-result --result-dir /results
+      --result-filename contextpair-{{ item.name }}-c{{ bench_tier }}.json
+    creates: "{{ benchmark_run_dir }}/contextpair-{{ item.name }}-c{{ bench_tier }}.json"
+  async: 7200
+  poll: 0
+  changed_when: true
+  register: benchmark_ctxpair_jobs
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: benchmark_context_stress | bool and vllm_instances | length > 1
+
+- name: "Context-pair c{{ bench_tier }}: wait for all runs"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: benchmark_ctxpair_result
+  until: benchmark_ctxpair_result.finished
+  retries: 480
+  delay: 15
+  loop: "{{ benchmark_ctxpair_jobs.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('skipped') }}"
+  when: item.ansible_job_id is defined
