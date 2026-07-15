@@ -33,6 +33,10 @@ story holds under load.
    model or quant, define a profile, benchmark it solo + co-located, compare
    against the incumbent. Documentation for that loop.
 
+The full testing definition (workload, scenarios, metrics, datasets, decisions
+log) lives in [benchmarking.md](benchmarking.md) and is kept up to date as the
+design discussion evolves.
+
 Decisions (settled 2026-07-15):
 
 - **Performance only** for v0.2 — quality evals (quantization accuracy impact)
