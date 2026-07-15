@@ -33,14 +33,19 @@ story holds under load.
    model or quant, define a profile, benchmark it solo + co-located, compare
    against the incumbent. Documentation for that loop.
 
-Open decisions (see the benchmarking-options discussion before implementing):
+Decisions (settled 2026-07-15):
 
-- Performance-only first, or performance + quality evals (does a given
-  quantization degrade answer quality)?
-- Benchmark harness choice and where it runs (on-host over localhost vs from
-  the control machine through the tunnel — tunnel throughput and SSH overhead
-  skew latency numbers at high concurrency).
-- Where results live (git-tracked files in this repo vs external store).
+- **Performance only** for v0.2 — quality evals (quantization accuracy impact)
+  deferred to a later phase.
+- **Harness: `vllm bench serve`**, run on the GPU host against localhost (the
+  tunnel's SSH overhead skews latency at high concurrency). It ships inside the
+  deployed vLLM image, so it's versioned with the server and works on the
+  offline customer box. guidellm can be added later if capacity-planning
+  numbers (max sustainable RPS) are requested — the orchestration should leave
+  room for a second harness.
+- **Results git-tracked in this repo**: one JSON per run tagged with profile
+  name, git SHA and timestamp, plus a comparison-table renderer. Revisit an
+  external store only at high run volume.
 
 ## Later / parked
 
