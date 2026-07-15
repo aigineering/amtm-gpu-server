@@ -18,8 +18,10 @@ vllm_instances:
       - "--enable-chunked-prefill"
       - "--limit-mm-per-prompt"
       - '{"image": 2, "video": 0}'
-      # Native CPU KV offloading (vLLM >=0.14 flags); 24GB of the host's 64GB.
+      # Native CPU KV offloading (vLLM >=0.14 flags). 40GB of the host's 64GB:
+      # the RAM tier must exceed the multi-turn working set (~35GB at c50) or
+      # it thrashes — measured: 372GB stored, 0.5GB loaded back at 24GB.
       - "--kv-offloading-backend"
       - "native"
       - "--kv-offloading-size"
-      - "24"
+      - "40"

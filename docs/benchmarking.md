@@ -142,6 +142,17 @@ Levers, in order: deeper conversations (`benchmark_multi_turn_turns_min/max`),
 more conversations/clients (`benchmark_multi_turn_tiers`,
 `benchmark_multi_turn_conversations_per_client`).
 
+**m2 re-validation (26B @ 8k `-kv`, no-early-stop active).** The flag works
+(965 samples at c50 vs 812 before) but the harness still ends at ~86% of
+theoretical turns and reports "finished" as fully-drained conversations only —
+so judge intensity by **samples processed vs expected (clients ×
+conversations × turns/2, want ≥80%)** rather than the "finished" line. The
+run isolated the real offload blocker: GPU hit rate collapsed 83%→22% at c50
+(eviction pressure ✓) while RAM returned almost nothing (372 GB stored, 0.49
+GB loaded) — the 24 GB CPU tier was smaller than the ~35 GB conversation
+working set and thrashed. Rule: **GPU pool < working set < RAM tier** must
+hold for offloading to have a chance; `-kv` profiles now use 40 GB.
+
 **Validated 2026-07-15 (26B @ 8k `-kv` run) — and defaults adjusted.** With the
 harness's default early stop, the c50 run failed every criterion: 8/150
 conversations completed (5%), 122s runtime, 1.47× demand ratio, 0.17 GB
