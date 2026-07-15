@@ -1,7 +1,0 @@
-vllm:prefix_cache_queries_total{engine="0"} 3000
-vllm:prefix_cache_hits_total{engine="0"} 200
-vllm:external_prefix_cache_queries_total{engine="0"} 2500
-vllm:external_prefix_cache_hits_total{engine="0"} 0
-vllm:gpu_cache_usage_perc{engine="0"} 0.5
-vllm:kv_offload_store_bytes_total{engine="0"} 0
-vllm:kv_offload_load_bytes_total{engine="0"} 0
