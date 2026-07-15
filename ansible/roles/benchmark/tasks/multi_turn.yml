@@ -70,6 +70,7 @@
     --input-file /results/multi_turn_input-c{{ item.0 }}.json
     --num-clients {{ item.0 }}
     --max-active-conversations {{ item.0 | int * benchmark_multi_turn_conversations_per_client | int }}
+    {% if benchmark_multi_turn_no_early_stop | bool %}--no-early-stop{% endif %}
     {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
     > {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.txt 2>&1;
     rc=$?;

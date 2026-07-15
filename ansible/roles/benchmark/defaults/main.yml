@@ -62,6 +62,13 @@ benchmark_multi_turn_conversations_per_client: 3
 # deep-conversation / offloading profiles.
 benchmark_multi_turn_turns_min: 12
 benchmark_multi_turn_turns_max: 18
+# Run every conversation to completion. The harness's default early stop ends
+# the benchmark when the first client drains — measured effect: 5% of
+# conversations completed, 122s runtime, working set below the KV pool, zero
+# meaningful offload traffic (fails all the validity criteria in
+# docs/benchmarking.md). Full completion pushes the c50 working set to ~3.5x
+# the pool, which is what the KV-offloading evaluation needs.
+benchmark_multi_turn_no_early_stop: true
 
 # Label recorded in the result record; profiles (ansible/profiles/*.yml)
 # override this together with vllm_instances.

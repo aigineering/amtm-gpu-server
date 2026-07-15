@@ -138,9 +138,19 @@ comparisons only if ALL of these hold:
 5. **Off runs**: prefix-cache eviction / preemption counters > 0.
 
 If any fail, don't conclude "offloading doesn't help" — intensify and re-run.
-Levers, in order: the harness's `--no-early-stop` flag, deeper conversations
-(`benchmark_multi_turn_turns_min/max`), more conversations/clients
-(`benchmark_multi_turn_tiers`, `benchmark_multi_turn_conversations_per_client`).
+Levers, in order: deeper conversations (`benchmark_multi_turn_turns_min/max`),
+more conversations/clients (`benchmark_multi_turn_tiers`,
+`benchmark_multi_turn_conversations_per_client`).
+
+**Validated 2026-07-15 (26B @ 8k `-kv` run) — and defaults adjusted.** With the
+harness's default early stop, the c50 run failed every criterion: 8/150
+conversations completed (5%), 122s runtime, 1.47× demand ratio, 0.17 GB
+loaded. Cause: early stop ends the whole benchmark when the first client
+drains, so conversations never reach the deep turns that build cache pressure.
+`--no-early-stop` is therefore the default now
+(`benchmark_multi_turn_no_early_stop: true`) — full completion puts the c50
+working set at ~3.5× the 8k pool with an estimated 4–8 min runtime, passing
+all criteria without touching turn depths.
 
 **First `-kv` run analysis (26B-A4B @ 8k, 2026-07-15) — assumptions checked.**
 Multi-turn does exercise the prefix cache as designed: 42% GPU hit rate, ~1.1M
