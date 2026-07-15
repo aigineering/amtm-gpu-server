@@ -40,10 +40,10 @@ profile: **baseline** | config: `2b00c31a85` | git: `ca060db65a` (dirty) | host:
 
 ### Configuration
 
-| instance | model | context window | GPU mem fraction | KV offload | other flags |
-|---|---|---|---|---|---|
-| gemma | gemma-4-26b-a4b-it-awq-4bit | 8,192 | 0.68 | off | `--enable-prefix-caching --enable-chunked-prefill --limit-mm-per-prompt {"image": 2, "video": 0}` |
-| llama | llama-3.2-3b-instruct-awq-int4 | 8,192 | 0.2 | off | `--enable-prefix-caching --enable-chunked-prefill` |
+| instance | model | context window | GPU mem fraction | KV pool | max conc @ctx | KV offload | other flags |
+|---|---|---|---|---|---|---|---|
+| gemma | gemma-4-26b-a4b-it-awq-4bit | 8,192 | 0.68 | — | — | off | `--enable-prefix-caching --enable-chunked-prefill --limit-mm-per-prompt {"image": 2, "video": 0}` |
+| llama | llama-3.2-3b-instruct-awq-int4 | 8,192 | 0.2 | — | — | off | `--enable-prefix-caching --enable-chunked-prefill` |
 
 workload: dataset=sharegpt | tiers=[1, 5, 20, 50] | prompts/user=8 | seed=42 | scenarios=['solo', 'colocated'] | context-stress inputs≈80% of window, 256 out | multi-turn: 20 clients / 60 conversations
 

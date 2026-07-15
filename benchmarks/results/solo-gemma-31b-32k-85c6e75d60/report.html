@@ -43,8 +43,8 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 <p>profile: <strong>solo-gemma-31b-32k</strong> | config: <code>85c6e75d60</code> | git: <code>eba2cf6f5a</code> | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T18:38:22Z</p>
 <h3>Configuration</h3>
 <table>
-<tr><th>instance</th><th>model</th><th>context window</th><th>GPU mem fraction</th><th>KV offload</th><th>other flags</th></tr>
-<tr><td>gemma-31b</td><td>gemma-4-31b-it-awq-4bit</td><td>32,768</td><td>0.9</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill</code></td></tr>
+<tr><th>instance</th><th>model</th><th>context window</th><th>GPU mem fraction</th><th>KV pool</th><th>max conc @ctx</th><th>KV offload</th><th>other flags</th></tr>
+<tr><td>gemma-31b</td><td>gemma-4-31b-it-awq-4bit</td><td>32,768</td><td>0.9</td><td>46,894 tok</td><td>5.72x @ 8,192</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill</code></td></tr>
 </table>
 <p>workload: dataset=sharegpt | tiers=[1, 5, 20, 50] | prompts/user=8 | seed=42 | scenarios=['solo'] | context-stress inputs≈80% of window, 256 out | multi-turn: 20 clients / 60 conversations</p>
 <p>served (observed): <code>gemma-31b</code> = gemma-4-31b-it-awq-4bit</p>

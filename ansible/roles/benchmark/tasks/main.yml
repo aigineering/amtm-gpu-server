@@ -176,6 +176,22 @@
         multi_turn_conversations_per_client: "{{ benchmark_multi_turn_conversations_per_client }}"
         multi_turn_turns: "{{ benchmark_multi_turn_turns_min }}-{{ benchmark_multi_turn_turns_max }}"
 
+# The engine prints its KV pool size and max theoretical concurrency at
+# startup — the capacity denominators for interpreting every result row.
+# Scraped from the container log (last startup wins, in case of restarts).
+- name: Capture each instance's KV pool figures from its startup log
+  ansible.builtin.shell:
+    cmd: >-
+      docker logs vllm-{{ item.name }} 2>&1
+      | grep -E "GPU KV cache size:|Maximum concurrency for|Available KV cache memory:"
+      | tail -3 > {{ benchmark_run_dir }}/kvpool-{{ item.name }}.txt
+    creates: "{{ benchmark_run_dir }}/kvpool-{{ item.name }}.txt"
+  changed_when: true
+  failed_when: false
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # --- Scenarios ---------------------------------------------------------------
 
 - name: Run solo baselines

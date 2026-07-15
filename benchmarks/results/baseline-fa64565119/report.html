@@ -43,9 +43,9 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 <p>profile: <strong>baseline</strong> | config: <code>2b00c31a85</code> | git: <code>ca060db65a</code> (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z</p>
 <h3>Configuration</h3>
 <table>
-<tr><th>instance</th><th>model</th><th>context window</th><th>GPU mem fraction</th><th>KV offload</th><th>other flags</th></tr>
-<tr><td>gemma</td><td>gemma-4-26b-a4b-it-awq-4bit</td><td>8,192</td><td>0.68</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill --limit-mm-per-prompt {"image": 2, "video": 0}</code></td></tr>
-<tr><td>llama</td><td>llama-3.2-3b-instruct-awq-int4</td><td>8,192</td><td>0.2</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill</code></td></tr>
+<tr><th>instance</th><th>model</th><th>context window</th><th>GPU mem fraction</th><th>KV pool</th><th>max conc @ctx</th><th>KV offload</th><th>other flags</th></tr>
+<tr><td>gemma</td><td>gemma-4-26b-a4b-it-awq-4bit</td><td>8,192</td><td>0.68</td><td>—</td><td>—</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill --limit-mm-per-prompt {"image": 2, "video": 0}</code></td></tr>
+<tr><td>llama</td><td>llama-3.2-3b-instruct-awq-int4</td><td>8,192</td><td>0.2</td><td>—</td><td>—</td><td>off</td><td><code>--enable-prefix-caching --enable-chunked-prefill</code></td></tr>
 </table>
 <p>workload: dataset=sharegpt | tiers=[1, 5, 20, 50] | prompts/user=8 | seed=42 | scenarios=['solo', 'colocated'] | context-stress inputs≈80% of window, 256 out | multi-turn: 20 clients / 60 conversations</p>
 <p>served (observed): <code>gemma</code> = gemma-4-26b-a4b-it-awq-4bit, <code>llama</code> = llama-3.2-3b-instruct-awq-int4</p>

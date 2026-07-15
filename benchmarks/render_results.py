@@ -238,7 +238,8 @@ def load_runs(only=None):
                               "clients": fm.group("clients") if fm else "?",
                               "stats": parse_multiturn(p)})
         runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
-                     "results": results, "multiturn": multiturn})
+                     "results": results, "multiturn": multiturn,
+                     "kvpool": parse_kvpool(run_dir)})
     return runs
 
 
@@ -283,13 +284,36 @@ def kv_mode(extra_args):
     return "off"
 
 
-def config_section(meta):
+KVPOOL_TOKENS_RE = re.compile(r"GPU KV cache size:\s*([\d,]+)\s*tokens")
+KVPOOL_CONC_RE = re.compile(r"Maximum concurrency for\s*([\d,]+)\s*tokens per request:\s*([\d.]+)x")
+KVPOOL_GIB_RE = re.compile(r"Available KV cache memory:\s*([\d.]+)\s*GiB")
+
+
+def parse_kvpool(run_dir):
+    """Per-instance KV capacity figures scraped from engine startup logs."""
+    pools = {}
+    for p in sorted(run_dir.glob("kvpool-*.txt")):
+        name = p.name[len("kvpool-"):-len(".txt")]
+        text = p.read_text(errors="replace")
+        entry = {}
+        if m := KVPOOL_TOKENS_RE.search(text):
+            entry["tokens"] = int(m.group(1).replace(",", ""))
+        if m := KVPOOL_GIB_RE.search(text):
+            entry["gib"] = float(m.group(1))
+        if m := KVPOOL_CONC_RE.search(text):
+            entry["conc"] = f"{m.group(2)}x @ {m.group(1)}"
+        if entry:
+            pools[name] = entry
+    return pools
+
+
+def config_section(meta, kvpool=None):
     """Static parameters of the run, documented once per summary."""
     out = ["\n### Configuration\n"]
     instances = meta.get("vllm_instances") or []
     if instances:
-        out.append("| instance | model | context window | GPU mem fraction | KV offload | other flags |")
-        out.append("|---|---|---|---|---|---|")
+        out.append("| instance | model | context window | GPU mem fraction | KV pool | max conc @ctx | KV offload | other flags |")
+        out.append("|---|---|---|---|---|---|---|---|")
         kv_tokens = {"--kv-offloading-backend", "--kv-offloading-size"}
         for inst in instances:
             args = list(inst.get("extra_args") or [])
@@ -303,10 +327,13 @@ def config_section(meta):
                     continue
                 other.append(a)
             model = (inst.get("model_path") or "?").rstrip("/").rsplit("/", 1)[-1]
+            pool = (kvpool or {}).get(inst.get("name"), {})
+            pool_str = (f"{pool['tokens']:,} tok" + (f" ({pool['gib']:.1f} GiB)" if "gib" in pool else "")) \
+                if "tokens" in pool else "—"
             out.append(
                 f"| {inst.get('name', '?')} | {model} | {int(inst.get('max_model_len', 0)):,} "
-                f"| {inst.get('gpu_memory_utilization', '?')} | {kv_mode(args)} "
-                f"| `{' '.join(other) or '—'}` |"
+                f"| {inst.get('gpu_memory_utilization', '?')} | {pool_str} | {pool.get('conc', '—')} "
+                f"| {kv_mode(args)} | `{' '.join(other) or '—'}` |"
             )
     w = meta.get("workload") or {}
     if w:
@@ -344,7 +371,7 @@ def run_section(run):
         f"image: {meta.get('vllm_image', '?')} | "
         f"first run: {meta.get('timestamp_utc', '?')}"
     )
-    out += config_section(meta)
+    out += config_section(meta, run.get("kvpool"))
     model_map = {r["name"]: r["model"] for r in run["results"]}
     if model_map:
         out.append("\nserved (observed): " + ", ".join(f"`{k}` = {v}" for k, v in sorted(model_map.items())))
