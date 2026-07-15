@@ -359,6 +359,10 @@ output `.txt` as a completion marker — delete that file to retry it.
 
 ## Interpreting results
 
+Product-level interpretation — how many users, what experience, per scenario,
+including the async SLO class for long-running document work — lives in
+[capacity-and-ux.md](capacity-and-ux.md) and is updated as campaign data lands.
+
 Each rendered table row is one (scenario, model, user-tier) combination:
 
 - **The SLO column is the verdict.** It's judged only on `colocated` rows

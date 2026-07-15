@@ -45,6 +45,7 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 │   ├── model-tuning-and-placement.md  # model placement + chat-focused tuning
 │   ├── model-fetching.md      # optional, opt-in: pulling models onto the host
 │   ├── aws-test-env.md        # provisioning/reset/teardown of the AWS test box
+│   ├── capacity-and-ux.md     # per-scenario user capacity & experience analysis
 │   └── runbook.md             # step-by-step operational procedures
 ├── infra/                     # CloudFormation + env.sh for the AWS test env
 │   ├── persistent.yml         # key, SG, EIP (survives resets)
