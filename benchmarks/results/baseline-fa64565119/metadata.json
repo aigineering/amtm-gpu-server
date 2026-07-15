@@ -5,10 +5,10 @@
         "instance_type": "g6e.2xlarge"
     },
     "profile_name": "baseline",
-    "repo_git_dirty": false,
-    "repo_git_sha": "1561dec957d5d01d0643f05167ddc5b677838865",
+    "repo_git_dirty": true,
+    "repo_git_sha": "ca060db65ac361e1876778c6e30af7a604362ad5",
     "run_id": "baseline-fa64565119",
-    "timestamp_utc": "2026-07-15T16:20:28Z",
+    "timestamp_utc": "2026-07-15T17:50:39Z",
     "vllm_image": "vllm/vllm-openai:latest",
     "vllm_image_digests": [
         "vllm/vllm-openai@sha256:e4f88a835143cd22aee2397a26ec6bb80b3a4a6fe0c882bcbc63822904766089"
@@ -50,9 +50,14 @@
             20,
             50
         ],
+        "context_input_fraction": 0.8,
+        "context_output_len": 256,
+        "context_stress": true,
         "dataset": "sharegpt",
         "dataset_path": "/opt/models/benchmark/datasets/sharegpt.json",
         "multi_turn": true,
+        "multi_turn_clients": 20,
+        "multi_turn_num_conversations": 60,
         "prompts_per_user": 8,
         "scenarios": [
             "solo",

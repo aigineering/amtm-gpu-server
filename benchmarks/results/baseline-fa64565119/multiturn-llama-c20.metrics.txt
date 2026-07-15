@@ -21,13 +21,13 @@ python_info{implementation="CPython",major="3",minor="12",patchlevel="13",versio
 process_virtual_memory_bytes 1.2600664064e+010
 # HELP process_resident_memory_bytes Resident memory size in bytes.
 # TYPE process_resident_memory_bytes gauge
-process_resident_memory_bytes 1.736699904e+09
+process_resident_memory_bytes 1.747054592e+09
 # HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
 # TYPE process_start_time_seconds gauge
 process_start_time_seconds 1.78413310682e+09
 # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
 # TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 76.74000000000001
+process_cpu_seconds_total 78.99000000000001
 # HELP process_open_fds Number of open file descriptors.
 # TYPE process_open_fds gauge
 process_open_fds 49.0
