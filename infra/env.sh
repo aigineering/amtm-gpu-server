@@ -15,7 +15,7 @@
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
-AZ="${AZ:-us-east-1a}"
+AZ="${AZ:-us-east-1c}"
 INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.xlarge}"
 EXPECTED_ACCOUNT="${AWS_ACCOUNT:-088070740738}"
 
