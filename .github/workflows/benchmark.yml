@@ -133,25 +133,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all result artifacts
+      # Download to staging, NOT the tree: the tree must first be updated to
+      # current main (the checkout is pinned to the run's original SHA, which
+      # can be hours stale after long benchmark jobs — rendering against a
+      # stale tree regenerates reports for dirs that upstream may have
+      # deleted, guaranteeing modify/delete rebase conflicts).
+      - name: Download all result artifacts (to staging)
         uses: actions/download-artifact@v4
         with:
           pattern: result-*
           merge-multiple: true
-          path: benchmarks/results/
+          path: /tmp/new-results/
 
-      - name: Render reports
-        run: python3 benchmarks/render_results.py
-
-      - name: Commit and push results (single push, GITHUB_TOKEN — no PAT)
+      - name: Sync to current main, merge in new results, render
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin ${{ github.ref_name }}   # clean tree — trivial
+          cp -r /tmp/new-results/. benchmarks/results/ 2>/dev/null || true
+          python3 benchmarks/render_results.py
+
+      - name: Commit and push results (single push, GITHUB_TOKEN — no PAT)
+        run: |
           git add benchmarks/results
           if git diff --cached --quiet; then
             echo "no new results to commit"
             exit 0
           fi
           git commit -m "Benchmark results: ${{ inputs.profile_glob }} (workflow run ${{ github.run_id }})"
-          git pull --rebase origin ${{ github.ref_name }}
+          # Race window between the sync above and this push: retry, preferring
+          # our commit's versions for generated files on conflict.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:${{ github.ref_name }}; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt) — rebasing onto latest"
+            git pull --rebase -X theirs origin ${{ github.ref_name }}
+          done
           git push origin HEAD:${{ github.ref_name }}
