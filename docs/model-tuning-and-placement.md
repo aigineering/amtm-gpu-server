@@ -141,6 +141,34 @@ conversations happen — if you see cache evictions or latency creeping up under
 traffic, that headroom (or lowering `--max-model-len`) is the first thing to revisit,
 before assuming you need to shrink the other model's share.
 
+## KV memory rule of thumb: ≈1 GiB per 10k tokens
+
+Measured on this deployment (fp16 KV cache; both numbers derived from the
+serving logs — every vLLM startup prints the exact pair as
+`Available KV cache memory: <GiB>` / `GPU KV cache size: <N> tokens`):
+
+| Model | KV per token | per 10k tokens | one full 32k sequence |
+|---|---|---|---|
+| Llama 3.2 3B AWQ | ~112 KB | ~1.1 GiB | ~3.5 GiB |
+| Gemma 4 31B AWQ | ~125 KB | ~1.2 GiB | ~4.0 GiB |
+
+Formula, for a new model before it's measured:
+`2 (K+V) × layers × kv_heads × head_dim × 2 bytes (fp16)` per token — but for
+architectures with heterogeneous attention (Gemma-4's interleaved local/global
+head dims), trust the startup-log numbers over the formula.
+
+What ~1 GiB / 10k tokens means in practice:
+
+- **KV is often bigger than the model.** One 32k conversation on the 3B costs
+  more memory than the 3B's own weights (3.5 vs 2.3 GiB).
+- **Window admission**: vLLM refuses to start unless the instance's KV pool
+  holds at least ONE full `max_model_len` sequence — with ~4 GiB per 32k, a
+  pair-config memory share can fail this check even though the weights fit.
+- **Concurrency math is now mental arithmetic**: a ~20 GiB pool ÷ 26k-token
+  requests ≈ 6 concurrent long-context users (exactly what the capacity runs
+  observe); 150 multi-turn conversations at ~3k tokens ≈ 56 GiB of working
+  set, which is why high-tier multi-turn is where CPU offloading gets tested.
+
 ## KV cache offloading to CPU RAM (not enabled — decision notes)
 
 If GPU KV cache proves too small under real traffic (symptom: prefix-cache
