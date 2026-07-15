@@ -14,12 +14,12 @@
   changed_when: true
 
 - name: "Multi-turn: wait for every endpoint"
-  ansible.builtin.uri:
-    url: "http://localhost:{{ item.port }}/health"
+  ansible.builtin.command: curl -sf http://localhost:{{ item.port }}/health
   register: benchmark_mt_health
-  until: benchmark_mt_health.status == 200
+  until: benchmark_mt_health.rc == 0
   retries: 90
   delay: 10
+  changed_when: false
   loop: "{{ vllm_instances }}"
   loop_control:
     label: "{{ item.name }}"

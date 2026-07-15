@@ -17,12 +17,12 @@
   changed_when: true
 
 - name: Wait for every endpoint to be healthy again
-  ansible.builtin.uri:
-    url: "http://localhost:{{ item.port }}/health"
+  ansible.builtin.command: curl -sf http://localhost:{{ item.port }}/health
   register: benchmark_health
-  until: benchmark_health.status == 200
+  until: benchmark_health.rc == 0
   retries: 90
   delay: 10
+  changed_when: false
   loop: "{{ vllm_instances }}"
   loop_control:
     label: "{{ item.name }}"

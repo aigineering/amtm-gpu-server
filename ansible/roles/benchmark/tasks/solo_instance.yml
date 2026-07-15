@@ -19,13 +19,15 @@
     chdir: "{{ vllm_deploy_dir }}"
   changed_when: true
 
+# curl, not the uri module — this host's Python networking has repeatedly
+# disagreed with reality (see the ASN1 saga); curl is what we verify with.
 - name: "Solo {{ bench_instance.name }}: wait for health"
-  ansible.builtin.uri:
-    url: "http://localhost:{{ bench_instance.port }}/health"
+  ansible.builtin.command: curl -sf http://localhost:{{ bench_instance.port }}/health
   register: benchmark_solo_health
-  until: benchmark_solo_health.status == 200
+  until: benchmark_solo_health.rc == 0
   retries: 90
   delay: 10
+  changed_when: false
 
 - name: "Solo {{ bench_instance.name }}: sweep concurrency tiers"
   ansible.builtin.include_tasks: bench_single.yml
