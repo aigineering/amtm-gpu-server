@@ -126,10 +126,15 @@ Two related startup facts worth knowing when re-tuning:
   other's in-flight allocations and compute garbage. The compose template chains
   `depends_on: service_healthy` so each instance waits for the previous one.
   `vllm_healthcheck_start_period` (default 600s) is the per-instance grace period.
-- **Gemma is a multimodal model, capped to text.** Without limits, vLLM profiles
-  its image/video encoder path at startup, burning several GiB of activation
-  headroom this chat deployment never uses. `--limit-mm-per-prompt
-  '{"image": 0, "video": 0}'` in its `extra_args` disables that.
+- **Gemma is a multimodal model, capped to image input only.** Multimodal here
+  means *input* (the model can receive and describe/analyze images) — never
+  generation; vLLM only ever produces tokens. Without limits, vLLM profiles the
+  video-encoder path at startup, burning several GiB of activation headroom.
+  `--limit-mm-per-prompt '{"image": 2, "video": 0}'` in its `extra_args` allows
+  up to 2 images per request and disables video. Image profiling still costs
+  some KV headroom — if KV memory goes negative at startup after a config
+  change, drop to `"image": 1` (or 0 for pure text) before reaching for a
+  bigger `gpu_memory_utilization`.
 
 With `--enable-prefix-caching` on, cached prefixes accumulate in KV cache as more
 conversations happen — if you see cache evictions or latency creeping up under real

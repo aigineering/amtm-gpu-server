@@ -27,9 +27,11 @@ model_fetch_force: false
 # vLLM needs profiling/cudagraph headroom on top, so 0.6 left negative KV cache
 # memory at startup. 0.68 ≈ 30.6 GiB gives ~10 GiB of KV; llama (2.3 GiB weights)
 # is comfortable at 0.2 ≈ 9 GiB (~6 GiB KV ≈ 7 concurrent 8k-token chats).
-# --limit-mm-per-prompt zeroes image/video support on gemma: we serve text chat
-# only, and multimodal profiling otherwise burns several GiB of activation
-# headroom at startup. See docs/model-tuning-and-placement.md.
+# --limit-mm-per-prompt on gemma: image INPUT (understanding) allowed, up to 2
+# per prompt; video disabled — profiling the video-encoder path at startup is
+# what burned several GiB of activation headroom. Image profiling costs some
+# KV headroom too; if startup goes negative again, drop to image: 1 or raise
+# gemma's utilization. See docs/model-tuning-and-placement.md.
 vllm_instances:
   - name: gemma
     model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"
@@ -42,7 +44,7 @@ vllm_instances:
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       - "--limit-mm-per-prompt"
-      - '{"image": 0, "video": 0}'
+      - '{"image": 2, "video": 0}'
 
   - name: llama
     model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"

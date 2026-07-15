@@ -25,7 +25,7 @@ vllm_instances:
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       - "--limit-mm-per-prompt"
-      - '{"image": 0, "video": 0}'
+      - '{"image": 2, "video": 0}'
 
   - name: llama
     model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"
