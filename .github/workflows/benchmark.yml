@@ -56,6 +56,12 @@ jobs:
         profile: ${{ fromJson(needs.list-profiles.outputs.profiles) }}
     env:
       ANSIBLE_HOST_KEY_CHECKING: "False"
+      # Without this, python block-buffers stdout on a non-TTY and the whole
+      # task's output (12 min of async polls…) arrives in one flush at the end.
+      PYTHONUNBUFFERED: "1"
+      # GitHub's log viewer renders ANSI colors; forcing them keeps task
+      # status readable at a glance.
+      ANSIBLE_FORCE_COLOR: "1"
     steps:
       - uses: actions/checkout@v4
 
