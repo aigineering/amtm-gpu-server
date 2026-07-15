@@ -133,6 +133,69 @@ def parse_multiturn(path):
     return stats if stats["rows"] else None
 
 
+
+
+HTML_STYLE = """<style>
+body { font-family: -apple-system, 'Segoe UI', sans-serif; margin: 2em auto; max-width: 1400px; padding: 0 1em; color: #1a1a1a; }
+table { border-collapse: collapse; margin: 1em 0; font-size: 13px; }
+th, td { border: 1px solid #d0d7de; padding: 4px 10px; text-align: left; white-space: nowrap; }
+th { background: #f6f8fa; }
+tr:nth-child(even) { background: #fafbfc; }
+code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
+.pass { color: #1a7f37; font-weight: 600; }
+.fail { color: #cf222e; font-weight: 600; }
+</style>"""
+
+MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+
+
+def md_inline(text):
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    text = MD_LINK_RE.sub(lambda m: f'<a href="{m.group(2)}">{m.group(1)}</a>', text)
+    return text
+
+
+def md_to_html(md, title):
+    """Just enough markdown->HTML for the reports this script generates."""
+    lines, out, table = md.splitlines(), [], []
+
+    def flush_table():
+        if not table:
+            return
+        out.append("<table>")
+        for i, cells in enumerate(table):
+            tag = "th" if i == 0 else "td"
+            row_html = []
+            for c in cells:
+                cls = ' class="pass"' if c == "PASS" else (' class="fail"' if c == "FAIL" else "")
+                row_html.append(f"<{tag}{cls}>{md_inline(c)}</{tag}>")
+            out.append("<tr>" + "".join(row_html) + "</tr>")
+        out.append("</table>")
+        table.clear()
+
+    for line in lines:
+        s = line.strip()
+        if s.startswith("|"):
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if all(re.fullmatch(r":?-+:?", c) for c in cells):
+                continue  # separator row
+            table.append(cells)
+            continue
+        flush_table()
+        m = re.match(r"^(#{1,6})\s+(.*)", s)
+        if m:
+            level = len(m.group(1))
+            out.append(f"<h{level}>{md_inline(m.group(2))}</h{level}>")
+        elif s:
+            out.append(f"<p>{md_inline(s)}</p>")
+    flush_table()
+    return (f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{title}</title>"
+            f"{HTML_STYLE}</head><body>" + "\n".join(out) + "</body></html>")
+
+
 def load_runs(only=None):
     runs = []
     if not RESULTS_DIR.is_dir():
@@ -334,6 +397,8 @@ def render(runs):
         report = "\n".join([f"# {run['run_id']}", "", LEGEND, ""] + section) + "\n"
         per_run_path = RESULTS_DIR / run["run_id"] / "README.md"
         per_run_path.write_text(report)
+        (RESULTS_DIR / run["run_id"] / "report.html").write_text(
+            md_to_html(report, run["run_id"]))
         stdout_parts.append("\n".join([f"\n## {run['run_id']}\n"] + section))
         print(f"(report written to {per_run_path})", file=sys.stderr)
 
@@ -360,7 +425,9 @@ def render(runs):
                 f"configs ({', '.join(sorted(configs))}) — do not compare across them."
             )
     index += warnings
-    INDEX_PATH.write_text("\n".join(index) + "\n")
+    index_md = "\n".join(index) + "\n"
+    INDEX_PATH.write_text(index_md)
+    (RESULTS_DIR / "index.html").write_text(md_to_html(index_md, "benchmark results index"))
 
     print("\n".join(["# Benchmark results", "", LEGEND] + stdout_parts + warnings))
     print(f"(index written to {INDEX_PATH})", file=sys.stderr)

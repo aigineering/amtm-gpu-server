@@ -121,14 +121,26 @@ a short runtime accumulates little KV-cache pressure). For the stage-1
 KV-offload on/off comparisons that pressure is the whole point: a too-light
 workload makes offload-on and offload-off read identical and proves nothing.
 
-Validity check for every offload comparison: the `.metrics.txt` snapshots must
-show real prefix-cache evictions during the run. If offload deltas are ~zero
-AND evictions are ~zero, the workload was too light — don't conclude
-"offloading doesn't help"; intensify and re-run. Levers, in order: the
-harness's `--no-early-stop` flag (run all conversations to completion),
-deeper conversations (`benchmark_multi_turn_turns_min/max`), more
-conversations/clients (`benchmark_multi_turn_clients`,
-`benchmark_multi_turn_num_conversations`).
+Concrete "workload was too light" test — a run is valid for offload
+comparisons only if ALL of these hold:
+
+1. **Completion ≥ 80%** of generated conversations finished (baseline: 3/60 =
+   5%, invalid), or the run used `--no-early-stop`.
+2. **Sustained runtime ≥ 5 min** (baseline: 61s — too short to build cache
+   pressure).
+3. **Demand ratio ≥ ~1.5×**: active conversations × mean input tokens (from
+   the multi-turn table) vs the engine's KV capacity in tokens (vLLM's startup
+   log line "GPU KV cache size: N tokens"). Below 1×, eviction is
+   arithmetically impossible.
+4. **`-kv` runs**: the offload connector's counters in the `.metrics.txt`
+   snapshot (blocks stored/loaded) are > 0 — zero means RAM was never touched
+   and the comparison is void.
+5. **Off runs**: prefix-cache eviction / preemption counters > 0.
+
+If any fail, don't conclude "offloading doesn't help" — intensify and re-run.
+Levers, in order: the harness's `--no-early-stop` flag, deeper conversations
+(`benchmark_multi_turn_turns_min/max`), more conversations/clients
+(`benchmark_multi_turn_clients`, `benchmark_multi_turn_num_conversations`).
 
 ### Multi-turn conversations (second harness)
 

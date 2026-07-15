@@ -83,6 +83,9 @@ jobs:
             -e vault_vllm_api_key='${{ secrets.VLLM_API_KEY }}' \
             -e vault_hf_token='${{ secrets.HF_TOKEN }}'
 
+      - name: Render reports (markdown + html into the new run dir)
+        run: python3 benchmarks/render_results.py
+
       - name: Stage new results (only dirs not already committed)
         id: stage
         run: |
@@ -90,6 +93,8 @@ jobs:
           git status --porcelain benchmarks/results | awk '$1 == "??" {print $2}' | while read -r p; do
             cp -r "$p" /tmp/new-results/
           done
+          # Surface this profile's report on the workflow run page immediately.
+          cat /tmp/new-results/*/README.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           if [ -n "$(ls -A /tmp/new-results)" ]; then
             echo "have_results=true" >> "$GITHUB_OUTPUT"
           else
