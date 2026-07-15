@@ -95,9 +95,12 @@ infra/env.sh down                 # full teardown, incl. models volume
 ```
 
 `up` prints the Elastic IP to put in `inventories/aws-test/hosts.yml` (once —
-it's stable across resets). Note the SG opens SSH to 0.0.0.0/0; ports 8001–8002
-are not exposed — test the endpoints through an SSH tunnel
-(`ssh -L 8001:localhost:8001 …`) or add ingress rules deliberately.
+it's stable across resets). Note the SG opens SSH **and the vLLM ports
+8001–8002** to 0.0.0.0/0 — the endpoints are public, so set an API key before
+deploying (`vault_vllm_api_key`, see
+[docs/vllm-configuration.md](docs/vllm-configuration.md)); requests then need
+`-H "Authorization: Bearer <key>"`. `infra/env.sh tunnel` still works if you
+prefer not to expose keys client-side.
 
 ### 1.2 Prepare the control machine
 

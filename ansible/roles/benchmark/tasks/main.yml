@@ -92,8 +92,13 @@
       vllm_instances: "{{ vllm_instances }}"
       # …and the config actually applied on the host (base64 of the rendered
       # compose file) — the renderer treats differing snapshots as different
-      # configurations even under the same profile name.
-      compose_file_b64: "{{ benchmark_compose_snapshot.content }}"
+      # configurations even under the same profile name. The API key is
+      # REDACTED before the snapshot lands in a git-tracked result record.
+      compose_file_b64: >-
+        {{ (benchmark_compose_snapshot.content | b64decode
+            | replace(vllm_api_key, 'REDACTED') | b64encode)
+           if (vllm_api_key | length > 0)
+           else benchmark_compose_snapshot.content }}
       host:
         instance_type: "{{ benchmark_instance_type.stdout | default('unknown') }}"
         gpu: "{{ benchmark_gpu_fingerprint.stdout | trim }}"

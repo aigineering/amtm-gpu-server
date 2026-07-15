@@ -106,11 +106,12 @@
     state: directory
     mode: "0755"
 
+# 0600: the rendered file may embed VLLM_API_KEY.
 - name: Render docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ vllm_deploy_dir }}/docker-compose.yml"
-    mode: "0644"
+    mode: "0600"
 
 - name: Deploy vLLM services
   community.docker.docker_compose_v2:

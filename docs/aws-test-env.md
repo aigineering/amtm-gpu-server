@@ -10,9 +10,12 @@ The environment is split so that "reset the machine" and "keep the models" don't
 fight each other:
 
 - **`gpu-vllm-test-persistent`** (`infra/persistent.yml`) — the imported SSH key
-  (from `.ssh/aws_key.pub` in this repo), the security group (SSH open to
-  0.0.0.0/0 — test env only, never copy this to anything real), and an Elastic
-  IP. Survives resets.
+  (from `.ssh/aws_key.pub` in this repo), the security group (SSH and the vLLM
+  ports 8001–8002 open to 0.0.0.0/0 — test env only, never copy this to
+  anything real; the vLLM ports are only safe because the app layer requires
+  an API key, see `vllm_api_key` in
+  [vllm-configuration.md](vllm-configuration.md)), and an Elastic IP. Survives
+  resets.
 - **`gpu-vllm-test-models-<az>`** (`infra/models.yml`) — only the gp3 EBS
   volume that holds `/opt/models`, **one stack per AZ**. In its own stack so a
   plain `reset` can never touch it, while `reset --wipe-models` can swap the

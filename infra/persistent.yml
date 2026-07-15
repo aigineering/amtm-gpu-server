@@ -30,6 +30,13 @@ Resources:
           ToPort: 22
           CidrIp: 0.0.0.0/0
           Description: SSH from anywhere (test env only)
+        - IpProtocol: tcp
+          FromPort: 8001
+          ToPort: 8002
+          CidrIp: 0.0.0.0/0
+          Description: >-
+            vLLM endpoints - protected at the app layer by an API key
+            (vllm_api_key); never expose without one
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-sg"

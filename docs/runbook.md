@@ -51,13 +51,14 @@ it behaves if the window isn't open yet.
    ansible gpu_servers -i inventories/aws-test/hosts.yml -m reboot -b
    ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
    ```
-7. Verify both vLLM endpoints. The test box's security group only opens SSH, so
-   go through a tunnel:
+7. Verify both vLLM endpoints (public on the test box, API-key protected —
+   see [vllm-configuration.md](vllm-configuration.md)):
    ```bash
-   ssh -i .ssh/aws_key -L 8001:localhost:8001 -L 8002:localhost:8002 ec2-user@<host> -N &
-   curl http://localhost:8001/v1/models   # gemma
-   curl http://localhost:8002/v1/models   # llama
+   curl -H "Authorization: Bearer <key>" http://<host>:8001/v1/models   # gemma
+   curl -H "Authorization: Bearer <key>" http://<host>:8002/v1/models   # llama
    ```
+   (Or tunnel with `infra/env.sh tunnel` — the key is still required on
+   /v1/* either way.)
 
 ## 4. Before touching the customer server
 

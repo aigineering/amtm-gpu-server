@@ -12,6 +12,12 @@ vllm_image: "vllm/vllm-openai:latest"
 # Raise it for very large models or slow disks.
 vllm_healthcheck_start_period: "600s"
 
+# When non-empty, every instance requires "Authorization: Bearer <key>" on
+# /v1/* (health/metrics stay open). Set via ansible-vault
+# (group_vars vault.yml -> vault_vllm_api_key), never in plaintext — the
+# inventories wire it as: vllm_api_key: "{{ vault_vllm_api_key | default('') }}".
+vllm_api_key: ""
+
 # Each entry:
 #   name                    - short identifier, used for container name and mount point
 #   model_path               - absolute path on the HOST to a full local HF-format model

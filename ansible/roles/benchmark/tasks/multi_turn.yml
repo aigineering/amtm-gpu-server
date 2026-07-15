@@ -37,6 +37,7 @@
     --input-file generate_multi_turn.json
     --num-clients {{ benchmark_multi_turn_clients }}
     --max-active-conversations {{ benchmark_multi_turn_max_active_conversations }}
+    {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
     > {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt 2>&1
   changed_when: true
   async: 7200

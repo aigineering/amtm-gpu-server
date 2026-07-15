@@ -10,6 +10,7 @@
 # roles/vllm/defaults/main.yml.
 vllm_image: "vllm/vllm-openai:latest"
 vllm_deploy_dir: /opt/vllm
+vllm_api_key: ""
 
 # Where the fetch playbook put the dataset + multi-turn harness (models volume).
 benchmark_assets_dir: /opt/models/benchmark

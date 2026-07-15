@@ -37,6 +37,27 @@ vllm_instances:
       - "--enable-chunked-prefill"
 ```
 
+### API key (`vllm_api_key`)
+
+When `vllm_api_key` is non-empty (wired in group_vars as
+`{{ vault_vllm_api_key | default('') }}` — set it via `ansible-vault` in the
+same `vault.yml` as the HF token), every instance requires
+`Authorization: Bearer <key>` on `/v1/*`. `/health` and `/metrics` stay open,
+so healthchecks and metrics scraping keep working. The key is injected as the
+`VLLM_API_KEY` environment variable in the rendered compose file (mode 0600 on
+the host), and the benchmark suite authenticates automatically (bench serve via
+`OPENAI_API_KEY`, the multi-turn harness via `--api-key`) while redacting the
+key from result records. Client-side:
+
+```bash
+curl http://<host>:8001/v1/chat/completions \
+  -H "Authorization: Bearer <key>" -H 'Content-Type: application/json' -d '…'
+```
+
+This exists because the test box's security group exposes 8001/8002 publicly —
+an unauthenticated OpenAI-compatible endpoint on a public IP gets found and
+abused. Rotate by changing the vault value and re-running `--tags vllm`.
+
 `name` and `model_path` are required; everything else has a default in
 `roles/vllm/defaults/main.yml`. Instances start one at a time (each waits for
 the previous one's `/health`; grace period `vllm_healthcheck_start_period`,

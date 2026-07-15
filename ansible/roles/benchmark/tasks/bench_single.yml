@@ -10,6 +10,7 @@
       docker run --rm --network host
       -v /opt/models:/models:ro
       -v {{ benchmark_run_dir }}:/results
+      {% if vllm_api_key | length > 0 %}-e OPENAI_API_KEY={{ vllm_api_key }}{% endif %}
       --entrypoint vllm {{ vllm_image }} bench serve
       --backend openai-chat
       --base-url http://localhost:{{ bench_instance.port }}

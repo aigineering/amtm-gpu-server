@@ -10,6 +10,11 @@ selinux_manage: true
 
 vllm_deploy_dir: /opt/vllm
 
+# API key required on /v1/* of both endpoints (the test box's SG exposes
+# 8001/8002 publicly). Set vault_vllm_api_key in group_vars/vault.yml —
+# same vault file as the HF token.
+vllm_api_key: "{{ vault_vllm_api_key | default('') }}"
+
 # Only used by playbooks/fetch-models.yml (never by the main site.yml apply). Set
 # model_fetch_hf_token via ansible-vault (group_vars/vault.yml -> vault_hf_token) —
 # see docs/model-fetching.md. This box is disposable, so re-fetching is cheap; leave

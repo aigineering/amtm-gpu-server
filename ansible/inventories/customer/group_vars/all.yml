@@ -13,6 +13,11 @@ selinux_manage: false     # confirm with the server owner before flipping SELinu
 
 vllm_deploy_dir: /opt/vllm
 
+# API key required on /v1/* when set (vault_vllm_api_key in vault.yml).
+# Decide with the customer whether their network layer already restricts
+# access or the app-level key is wanted too.
+vllm_api_key: "{{ vault_vllm_api_key | default('') }}"
+
 # Only used by playbooks/fetch-models.yml (never by the main site.yml apply), and
 # only during a window the customer's IT team has explicitly opened this host's
 # egress for. Set model_fetch_hf_token via ansible-vault

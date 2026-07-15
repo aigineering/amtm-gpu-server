@@ -17,7 +17,7 @@
 # REGION and AZ must match (AZ = region + letter) — enforced before anything runs.
 #
 # L40S capacity is scarce and per-AZ, so the models volume is one stack PER AZ:
-# hop zones with e.g. `AZ=eu-south-2b infra/env.sh reset` — the first visit to a
+# hop zones with e.g. `AZ=eu-central-1b infra/env.sh reset` — the first visit to a
 # new AZ creates a blank volume there (re-run fetch-models once), and every AZ
 # you've visited keeps its warm model cache (~$24/mo per 300GB volume) until 'down'.
 # Stacks are region-scoped: hunting capacity across regions gives each region
@@ -29,15 +29,15 @@ set -euo pipefail
 # REGION beats AWS_REGION so an exported AWS_REGION from earlier shell work
 # can't silently redirect a run (this bit us: stacks landed in the wrong
 # region with an AZ that doesn't exist there).
-REGION="${REGION:-${AWS_REGION:-eu-south-2}}"
-AZ="${AZ:-eu-south-2c}"
+REGION="${REGION:-${AWS_REGION:-eu-central-1}}"
+AZ="${AZ:-eu-central-1c}"
 INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.2xlarge}"
 EXPECTED_ACCOUNT="${AWS_ACCOUNT:-088070740738}"
 
 PREFIX="gpu-vllm-test"
 PERSISTENT_STACK="${PREFIX}-persistent"
 # One models stack PER AZ: L40S capacity comes and goes per zone, so hopping
-# AZs (AZ=eu-south-2b infra/env.sh reset) keeps a warm model cache in each zone
+# AZs (AZ=eu-central-1b infra/env.sh reset) keeps a warm model cache in each zone
 # instead of forcing a re-fetch. 'down' sweeps the models stacks of ALL AZs.
 MODELS_STACK="${PREFIX}-models-${AZ}"
 INSTANCE_STACK="${PREFIX}-instance"
@@ -197,7 +197,7 @@ cmd_reset() {
     delete_stack "$MODELS_STACK"
   fi
   # Idempotent — also creates this AZ's models stack on a first visit to a new
-  # AZ (AZ=eu-south-2b infra/env.sh reset), where the fresh volume starts blank.
+  # AZ (AZ=eu-central-1b infra/env.sh reset), where the fresh volume starts blank.
   deploy_models
   deploy_instance
   if $wipe; then
@@ -243,7 +243,8 @@ cmd_status() {
 
 cmd_ssh() { exec ssh -i "$PRIVKEY_FILE" "ec2-user@$(public_ip)"; }
 
-# The test box's SG only opens SSH — the vLLM ports are reached through a tunnel.
+# The vLLM ports are public in the SG (API-key protected); the tunnel remains
+# for tests that shouldn't carry the key client-side.
 # Runs in the foreground; Ctrl-C to close.
 cmd_tunnel() {
   local ip forwards=()
