@@ -84,8 +84,11 @@
   changed_when: false
   failed_when: false
 
+# Ask the LIVE daemon, not daemon.json: the file being configured doesn't mean
+# dockerd has reloaded it — checking the file would skip the configure+restart
+# path and leave 'could not select device driver "nvidia"' at container start.
 - name: Check whether the nvidia runtime is configured for Docker
-  ansible.builtin.command: grep -q '"nvidia"' /etc/docker/daemon.json
+  ansible.builtin.shell: docker info --format '{{ '{{' }}json .Runtimes{{ '}}' }}' | grep -q nvidia
   register: nvidia_runtime_check
   changed_when: false
   failed_when: false
@@ -136,10 +139,13 @@
         state: present
       when: not nvidia_toolkit_detected
 
+    # Only reached when the live daemon lacks the runtime (see check above), so
+    # this always represents a change and must always trigger the restart —
+    # don't infer changed_when from nvidia-ctk's output (it logs to stderr,
+    # which previously left the notify unfired and the daemon never restarted).
     - name: Configure the NVIDIA runtime for Docker
       ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
-      register: nvidia_ctk_configure
-      changed_when: "'Adding runtime' in nvidia_ctk_configure.stdout or 'Runtime configuration' in nvidia_ctk_configure.stdout"
+      changed_when: true
       notify: Restart docker
       when: not nvidia_runtime_configured
 
