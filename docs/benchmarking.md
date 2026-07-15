@@ -169,6 +169,20 @@ so the kv-vs-off comparison of ShareGPT/context rows is a real measurement of
 offloading's standing overhead, and offload *benefit* should be looked for at
 bigger contexts / deeper conversations, as scoped.
 
+**Twin comparison, 26B @ 8k kv-vs-off (2026-07-15, pre-seed-fix runs).**
+The standing overhead of enabling offloading: ShareGPT TTFT p95 +6% (c1) to
++23% (c50, 474→581ms); ITL and throughput unchanged — the store side pushes
+every eviction to RAM regardless of reuse, and that traffic costs TTFT tail
+under load. The mechanism demonstrably works: context c20 showed −44% TTFT
+(+14% throughput) from 1.72 GB reloaded out of RAM — but the reuse it
+exploited was the same-seed artifact (identical prompts across tiers), so
+that specific win disappears under the fixed seeds; its value is proof that
+a RAM reload beats a multi-thousand-token recompute by a wide margin.
+Multi-turn showed no benefit at any tier, consistent with the too-light
+workload (shallow early-stopped conversations fit the pool). Net: at 8k with
+light conversations, offloading is all cost (~modest) and no benefit — the
+decisive test is deep multi-turn (post `--no-early-stop`) and larger contexts.
+
 **Where `-kv` improvements can appear (expected signature).** ShareGPT and
 context runs have (near-)zero prefix reuse, so offloading *cannot* help there
 — those rows double as the idle-overhead control (expect flat or slightly
