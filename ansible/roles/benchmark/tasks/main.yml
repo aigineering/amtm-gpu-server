@@ -187,12 +187,17 @@
     dest: "{{ playbook_dir }}/../../benchmarks/results/"
     flat: true
 
+# Plain tar, not the unarchive module: unarchive insists on GNU tar, and the
+# control machine is a Mac (BSD tar) — which extracts .tar.gz just fine when
+# invoked directly.
 - name: Extract the results locally
-  ansible.builtin.unarchive:
-    src: "{{ playbook_dir }}/../../benchmarks/results/{{ benchmark_run_id | trim }}.tar.gz"
-    dest: "{{ playbook_dir }}/../../benchmarks/results/"
+  ansible.builtin.command:
+    cmd: >-
+      tar -xzf {{ playbook_dir }}/../../benchmarks/results/{{ benchmark_run_id | trim }}.tar.gz
+      -C {{ playbook_dir }}/../../benchmarks/results/
   delegate_to: localhost
   become: false
+  changed_when: true
 
 - name: Remove the local archive
   ansible.builtin.file:
