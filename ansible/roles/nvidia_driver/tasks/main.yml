@@ -7,6 +7,9 @@
   ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
   register: nvidia_smi_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Set driver detection facts
@@ -21,10 +24,13 @@
       NVIDIA driver detected: {{ nvidia_driver_detected }}{{
       ' (version ' ~ nvidia_driver_current_version ~ ')' if nvidia_driver_detected else '' }}
 
+# The empty-string guard keeps the version test from exploding if nvidia-smi
+# ever succeeds but prints nothing parseable — treated as needs-install.
 - name: Determine whether install/upgrade is needed
   ansible.builtin.set_fact:
     nvidia_driver_needs_install: >-
       {{ not nvidia_driver_detected or
+         (nvidia_driver_current_version | length == 0) or
          (nvidia_driver_current_version is version(nvidia_driver_min_version, '<')) }}
 
 - name: Fail if driver missing/outdated and management is disabled
@@ -74,6 +80,9 @@
       ansible.builtin.command: rpm -q epel-release
       register: epel_check
       changed_when: false
+      # Read-only detection must run even under --check, or every downstream
+      # fact is computed from a skipped, empty register.
+      check_mode: false
       failed_when: false
 
     - name: Install EPEL repo (provides dkms)

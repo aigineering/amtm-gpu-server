@@ -8,12 +8,18 @@
   ansible.builtin.command: docker --version
   register: docker_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Check whether the docker service is active
   ansible.builtin.command: systemctl is-active docker
   register: docker_service_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Set docker detection facts
@@ -82,6 +88,9 @@
   ansible.builtin.command: rpm -q nvidia-container-toolkit
   register: nvidia_toolkit_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 # Ask the LIVE daemon, not daemon.json: the file being configured doesn't mean
@@ -91,6 +100,9 @@
   ansible.builtin.shell: docker info --format '{{ '{{' }}json .Runtimes{{ '}}' }}' | grep -q nvidia
   register: nvidia_runtime_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Set toolkit detection facts
@@ -156,6 +168,9 @@
   ansible.builtin.command: getenforce
   register: selinux_mode_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Set SELinux mode fact
@@ -166,6 +181,9 @@
   ansible.builtin.command: getsebool container_use_devices
   register: selinux_bool_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
   when: selinux_mode == 'Enforcing'
 

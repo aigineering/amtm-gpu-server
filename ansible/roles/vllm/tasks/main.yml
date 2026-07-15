@@ -59,6 +59,9 @@
   ansible.builtin.command: nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
   register: gpu_compute_apps
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Report existing GPU compute processes
@@ -71,6 +74,9 @@
   ansible.builtin.command: nvidia-smi --query-gpu=memory.total,memory.used --format=csv,noheader,nounits
   register: gpu_memory_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
 
 - name: Parse GPU memory facts
   ansible.builtin.set_fact:

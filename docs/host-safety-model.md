@@ -36,7 +36,10 @@ Every gated area has:
 
 1. **A detection task** — runs a read-only command (`nvidia-smi`, `docker --version`,
    `systemctl is-active firewalld`, `getenforce`, `rpm -q ...`) and never fails the
-   play by itself (`failed_when: false`).
+   play by itself (`failed_when: false`). Detection tasks always carry
+   `check_mode: false`: they're read-only, and a `--check` run that skips them
+   computes every downstream fact from an empty register — the report-only run
+   this repo's workflow depends on would describe a fictional host.
 2. **A fact reported via `debug`** — so a `--check` run or a real run always shows you
    what was found, even when no change happens.
 3. **A `*_manage` boolean variable** — `nvidia_driver_manage`, `docker_manage`,

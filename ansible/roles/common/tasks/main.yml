@@ -22,6 +22,9 @@
   ansible.builtin.command: systemctl is-active firewalld
   register: firewalld_active_check
   changed_when: false
+  # Read-only detection must run even under --check, or every downstream
+  # fact is computed from a skipped, empty register.
+  check_mode: false
   failed_when: false
 
 - name: Set firewalld detection facts
