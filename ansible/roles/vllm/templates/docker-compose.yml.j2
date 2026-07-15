@@ -42,9 +42,8 @@ services:
       - "{{ instance.gpu_memory_utilization }}"
       - "--max-model-len"
       - "{{ instance.max_model_len | string }}"
+{# to_json, not bare quoting: args may contain double quotes (e.g. the JSON value of --limit-mm-per-prompt) #}
 {% for arg in instance.extra_args | default([]) %}
-      {# to_json, not bare quoting: args may themselves contain double quotes,
-         e.g. the JSON value of --limit-mm-per-prompt #}
       - {{ arg | to_json }}
 {% endfor %}
     deploy:
