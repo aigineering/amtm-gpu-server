@@ -49,6 +49,24 @@
 # Python ABI), into a dir the bench containers pick up via PYTHONPATH —
 # survives resets and is offline afterwards. Needs PyPI access on first run
 # (test box: fine; customer box: only during an egress window).
+- name: Check the multi-turn harness requirements file is on the volume
+  ansible.builtin.stat:
+    path: "{{ benchmark_assets_dir }}/multi_turn/requirements.txt"
+  register: benchmark_mt_requirements_check
+  when: benchmark_multi_turn | bool
+
+- name: Fail clearly if the harness requirements were never fetched
+  ansible.builtin.fail:
+    msg: >-
+      {{ benchmark_assets_dir }}/multi_turn/requirements.txt is missing — it was
+      added to the fetch asset list later than the other harness files, so a
+      models volume fetched before then won't have it. Re-run
+      playbooks/fetch-models.yml (already-fetched assets are skipped, this
+      takes seconds), then re-run the benchmark.
+  when:
+    - benchmark_multi_turn | bool
+    - not benchmark_mt_requirements_check.stat.exists
+
 - name: Check multi-turn harness Python deps are on the models volume
   ansible.builtin.stat:
     path: "{{ benchmark_assets_dir }}/pylibs/pandas"
