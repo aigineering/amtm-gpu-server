@@ -33,6 +33,17 @@
   async: 7200
   poll: 15
 
+# Snapshot IMMEDIATELY after the sharegpt run (before the context run) so this
+# row's cache-counter deltas aren't contaminated by the next workload.
+- name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ bench_instance.port }}/metrics >
+      {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
+    # Don't overwrite a completed run's post-run snapshot on resume.
+    creates: "{{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt"
+  changed_when: true
+
 # Context-stress: same endpoint/tier, random long inputs near max_model_len.
 # Zero prefix reuse by design — the capacity-mapping worst case.
 - name: "Context {{ bench_instance.name }} c{{ bench_tier }} ({{ bench_instance.max_model_len }} ctx)"
@@ -64,11 +75,11 @@
   poll: 15
   when: benchmark_context_stress | bool and bench_scenario == 'solo'
 
-- name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
+- name: "Context {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
   ansible.builtin.shell:
     cmd: >-
       curl -s http://localhost:{{ bench_instance.port }}/metrics >
-      {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
-    # Don't overwrite a completed run's post-run snapshot on resume.
-    creates: "{{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt"
+      {{ benchmark_run_dir }}/context-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
+    creates: "{{ benchmark_run_dir }}/context-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt"
   changed_when: true
+  when: benchmark_context_stress | bool and bench_scenario == 'solo'

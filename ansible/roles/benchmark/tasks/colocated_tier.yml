@@ -105,3 +105,15 @@
   loop_control:
     label: "{{ item.item.name | default('skipped') }}"
   when: item.ansible_job_id is defined
+
+- name: "Context-pair c{{ bench_tier }}: snapshot /metrics per endpoint"
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ item.port }}/metrics >
+      {{ benchmark_run_dir }}/contextpair-{{ item.name }}-c{{ bench_tier }}.metrics.txt
+    creates: "{{ benchmark_run_dir }}/contextpair-{{ item.name }}-c{{ bench_tier }}.metrics.txt"
+  changed_when: true
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: benchmark_context_stress | bool and vllm_instances | length > 1

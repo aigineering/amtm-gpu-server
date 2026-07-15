@@ -71,18 +71,23 @@ LEGEND = """\
 | req/s | Completed requests per second (capacity in user terms) |
 | run dur | Wall-clock duration of that benchmark run, seconds |
 | in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
+| KV use | GPU KV cache fill level at that row's post-run snapshot (cached prefixes retained in the pool) |
+| GPU hit | GPU prefix-cache hit rate during that row (Δhits/Δqueries vs the previous snapshot in the run) |
+| ext hit | External (RAM-offloaded) prefix-cache hit rate during that row — requires KV offloading |
 | SLO | PASS/FAIL against the working targets (docs/benchmarking.md): TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms. Evaluated on every row; read per scenario — `colocated` is the binding product judgment, `solo` is a model's standalone ceiling, and `context`/`contextpair` failing at high tiers is the expected capacity cliff (worst-case probe), not a defect |
 
-**Multi-turn conversations table** (conversation replay with growing history —
-prefix-cache and KV-offloading behavior): parsed from the harness reports.
-Columns: req/s (completed turns per second); TTFT/TPOT/e2e mean/tail in ms
-(tail = p99, falling back to p90 or max when small runs omit percentiles);
-input tokens per request mean/max (how deep conversations grew); approximate
-total tokens in/out (count × mean); **ext cache hit** — external (offloaded)
-prefix-cache hit rate for that tier (Δhits/Δqueries vs the previous snapshot;
-requires KV offloading); **KV stored/loaded** — GB pushed to / pulled back
-from CPU RAM during that tier (per-tier delta vs the c0 baseline snapshot).
-Raw reports remain in `multiturn-*.txt`.
+**Multi-turn conversations table** — conversation replay with growing
+history (prefix-cache and KV-offloading behavior), parsed from the harness
+reports; raw reports remain in `multiturn-*.txt`.
+
+| Column | Meaning |
+|---|---|
+| req/s | Completed turns per second |
+| TTFT / TPOT / e2e mean/tail | ms; tail = p99, falling back to p90 or max when small runs omit percentiles |
+| input tok mean/max | Input tokens per request — shows how deep conversations grew |
+| ≈tok in/out total | Approximate totals (count × mean; the harness reports distributions, not sums) |
+| KV use / GPU hit / ext hit | Same meaning as the main-table columns, per tier (deltas vs the previous tier's snapshot, starting at the c0 baseline) |
+| KV stored/loaded | GB pushed to / pulled back from CPU RAM during that tier |
 """
 
 # Working SLOs from docs/benchmarking.md (co-located scenario is what counts).
@@ -230,6 +235,20 @@ def load_runs(only=None):
             # just the instance alias.
             model_id = (data.get("model_id") or "").rstrip("/").rsplit("/", 1)[-1]
             results.append({**m.groupdict(), "model": model_id or m.group("name"), "data": data})
+        # Per-row cache metrics: chain each instance's snapshots in execution
+        # order (bench-baseline -> per tier: sharegpt then context) and compute
+        # per-row counter deltas against the previous snapshot in the chain.
+        sc_order = {"solo": 0, "colocated": 0, "context": 1, "contextpair": 1}
+        for name in {r["name"] for r in results}:
+            prev = parse_offload_counters(run_dir / f"bench-baseline-{name}.metrics.txt")
+            chain = sorted((r for r in results if r["name"] == name),
+                           key=lambda r: (int(r["tier"]), sc_order.get(r["scenario"], 2)))
+            for r in chain:
+                cur = parse_offload_counters(
+                    run_dir / f"{r['scenario']}-{name}-c{r['tier']}.metrics.txt")
+                r["cache_cells"] = cache_cells(cur, prev)
+                if cur:
+                    prev = cur
         multiturn = []
         for p in sorted(run_dir.glob("multiturn-*.txt")):
             if p.name.endswith(".metrics.txt"):
@@ -241,8 +260,17 @@ def load_runs(only=None):
                               "stats": parse_multiturn(p),
                               "counters": parse_offload_counters(
                                   p.with_name(p.name[:-4] + ".metrics.txt"))})
+        # Multi-turn per-tier baselines: the c0 snapshot is metrics-only (no
+        # harness report), so it must be collected directly, not via the
+        # multiturn report list.
+        mt_baselines = {}
+        for p in run_dir.glob("multiturn-*-c0.metrics.txt"):
+            name = p.name[len("multiturn-"):-len("-c0.metrics.txt")]
+            if c := parse_offload_counters(p):
+                mt_baselines[name] = c
         runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
                      "results": results, "multiturn": multiturn,
+                     "mt_baselines": mt_baselines,
                      "kvpool": parse_kvpool(run_dir)})
     return runs
 
@@ -298,7 +326,28 @@ OFFLOAD_COUNTERS = {
     "loaded": r"vllm:kv_offload_load_bytes_total\{[^}]*\}\s+([\d.e+]+)",
     "hits": r"vllm:external_prefix_cache_hits_total\{[^}]*\}\s+([\d.e+]+)",
     "queries": r"vllm:external_prefix_cache_queries_total\{[^}]*\}\s+([\d.e+]+)",
+    "gpu_hits": r"vllm:prefix_cache_hits_total\{[^}]*\}\s+([\d.e+]+)",
+    "gpu_queries": r"vllm:prefix_cache_queries_total\{[^}]*\}\s+([\d.e+]+)",
+    "kv_usage": r"vllm:gpu_cache_usage_perc\{[^}]*\}\s+([\d.e+-]+)",
 }
+
+
+def cache_cells(cur, prev):
+    """(KV use, GPU hit, ext hit) display cells from a snapshot + its baseline."""
+    if not cur:
+        return "—", "—", "—"
+    kvuse = f"{cur['kv_usage']:.0%}" if "kv_usage" in cur else "—"
+    gpu = ext = "—"
+    if prev:
+        dq = cur.get("gpu_queries", 0) - prev.get("gpu_queries", 0)
+        dh = cur.get("gpu_hits", 0) - prev.get("gpu_hits", 0)
+        eq = cur.get("queries", 0) - prev.get("queries", 0)
+        eh = cur.get("hits", 0) - prev.get("hits", 0)
+        if dq > 0:
+            gpu = f"{dh / dq:.1%}"
+        if eq > 0:
+            ext = f"{eh / eq:.1%}"
+    return kvuse, gpu, ext
 
 
 def parse_offload_counters(path):
@@ -403,13 +452,15 @@ def run_section(run):
         total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
         total_in = sum(r["data"].get("total_input_tokens") or 0 for r in run["results"])
         total_out = sum(r["data"].get("total_output_tokens") or 0 for r in run["results"])
-        headers = ["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS] + ["SLO"]
+        headers = (["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS]
+                   + ["KV use", "GPU hit", "ext hit", "SLO"])
         out.append("\n| " + " | ".join(headers) + " |")
         out.append("|" + "---|" * len(headers))
         ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
         for r in ordered:
             row = [r["scenario"], r["model"], r["tier"]]
             row += [fmt(key, r["data"].get(key)) for key, _ in METRIC_COLUMNS]
+            row += list(r.get("cache_cells", ("—", "—", "—")))
             row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
             out.append("| " + " | ".join(row) + " |")
         out.append(
@@ -426,12 +477,11 @@ def run_section(run):
     if parsed:
         parsed.sort(key=lambda m: (m["name"], int(m["clients"]) if str(m["clients"]).isdigit() else 0))
         # cumulative counters -> per-tier deltas, using the c0 baseline snapshot
-        baselines = {m["name"]: m["counters"] for m in run["multiturn"]
-                     if m["file"].endswith("-c0.metrics.txt") and m["counters"]}
+        baselines = run.get("mt_baselines", {})
         out.append("\n### Multi-turn conversations\n")
         out.append("| instance | clients | req/s | TTFT mean/tail | TPOT mean/tail | e2e mean/tail "
-                   "| input tok mean/max | ≈tok in/out total | ext cache hit | KV stored/loaded | runtime |")
-        out.append("|---|---|---|---|---|---|---|---|---|---|---|")
+                   "| input tok mean/max | ≈tok in/out total | KV use | GPU hit | ext hit | KV stored/loaded | runtime |")
+        out.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
         prev_counters = dict(baselines)
         for m in parsed:
             s = m["stats"]
@@ -452,23 +502,20 @@ def run_section(run):
             tout = f"{int(otok['count'] * otok['mean']):,}" if otok else "—"
             imeanmax = f"{itok['mean']:,.0f} / {itok['max']:,.0f}" if itok else "—"
 
-            hit, kv = "—", "—"
             cur, base = m["counters"], prev_counters.get(m["name"])
-            if cur and base:
-                dq = cur.get("queries", 0) - base.get("queries", 0)
-                dh = cur.get("hits", 0) - base.get("hits", 0)
+            kvuse, gpu_hit, ext_hit = cache_cells(cur, base)
+            kv = "—"
+            if cur and base and ("stored" in cur or "loaded" in cur):
                 ds = cur.get("stored", 0) - base.get("stored", 0)
                 dl = cur.get("loaded", 0) - base.get("loaded", 0)
-                if dq > 0:
-                    hit = f"{dh / dq:.1%}"
-                if "stored" in cur or "loaded" in cur:
-                    kv = f"{ds / 1e9:.2f} / {dl / 1e9:.2f} GB"
+                kv = f"{ds / 1e9:.2f} / {dl / 1e9:.2f} GB"
             if cur:
                 prev_counters[m["name"]] = cur
             out.append(
                 f"| {m['name']} | {m['clients']} | {s.get('requests_per_sec', 0):.2f} "
                 f"| {pair('ttft_ms')} | {pair('tpot_ms')} | {pair('latency_ms')} "
-                f"| {imeanmax} | {tin} / {tout} | {hit} | {kv} | {s.get('runtime_sec', 0):,.0f}s |"
+                f"| {imeanmax} | {tin} / {tout} | {kvuse} | {gpu_hit} | {ext_hit} "
+                f"| {kv} | {s.get('runtime_sec', 0):,.0f}s |"
             )
     if unparsed:
         out.append("\nunparsed multi-turn files (failed or unexpected format): "

@@ -192,6 +192,21 @@
   loop_control:
     label: "{{ item.name }}"
 
+# Run-start counter baseline per instance: cache/offload counters are
+# cumulative, so per-row hit rates need a zero point (fresh containers start
+# at zero, but resumed runs against a warm container don't).
+- name: Capture a run-start /metrics baseline per instance
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ item.port }}/metrics >
+      {{ benchmark_run_dir }}/bench-baseline-{{ item.name }}.metrics.txt
+    creates: "{{ benchmark_run_dir }}/bench-baseline-{{ item.name }}.metrics.txt"
+  changed_when: true
+  failed_when: false
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # --- Scenarios ---------------------------------------------------------------
 
 - name: Run solo baselines
