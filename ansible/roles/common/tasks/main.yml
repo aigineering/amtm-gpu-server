@@ -32,10 +32,11 @@
   ansible.builtin.debug:
     msg: "firewalld currently active: {{ firewalld_currently_active }}"
 
+# When firewalld_manage is true, ensure the full desired state (package present,
+# service running and enabled) regardless of what detection found — all three
+# tasks are idempotent no-ops on a host that already has them.
 - name: Install and enable firewalld
-  when:
-    - not firewalld_currently_active
-    - firewalld_manage
+  when: firewalld_manage
   block:
     - name: Install firewalld package
       ansible.builtin.dnf:
@@ -61,6 +62,17 @@
       whatever mechanism this host actually uses (security group, external firewall,
       etc). Set firewalld_manage: true to have this role manage it instead.
   when: not firewalld_currently_active
+
+# Explicitly allow SSH before anything else: this playbook's only access path to
+# the host is SSH, so if firewalld was just enabled fresh (or its zone config
+# doesn't include the ssh service), this guarantees we can't lock ourselves out.
+- name: Ensure SSH is allowed in firewalld
+  ansible.posix.firewalld:
+    service: ssh
+    permanent: true
+    immediate: true
+    state: enabled
+  when: firewalld_currently_active
 
 - name: Open vLLM instance ports in firewalld
   ansible.posix.firewalld:

@@ -49,10 +49,21 @@ Every gated area has:
 5. **A gated `block` that makes the change** — only reached when management is
    explicitly turned on for that host.
 
-One exception: **GPU memory/compute capacity** (in the `vllm` role) is detection-only
-— there's nothing to "manage" about another process already using GPU memory, so it's
-always checked and only asserts (fails) if the numbers don't add up. See
-[vllm-configuration.md](vllm-configuration.md).
+Two exceptions:
+
+- **GPU memory/compute capacity** (in the `vllm` role) is detection-only — there's
+  nothing to "manage" about another process already using GPU memory, so it's always
+  checked and only asserts (fails) if the numbers don't add up. See
+  [vllm-configuration.md](vllm-configuration.md).
+- **firewalld** (in the `common` role) doesn't hard-fail when absent and unmanaged:
+  a host without firewalld isn't broken — it may rely on a cloud security group or
+  an external firewall — so the role reports the skip (naming the vLLM ports that
+  must be reachable some other way) and proceeds. The `firewalld_manage` flag gates
+  install/enable: when true, the package is installed and the service
+  started/enabled regardless of current state. Rules (the `ssh` service, explicitly,
+  so a freshly enabled firewall can never cut off the playbook's own access path,
+  plus each vLLM instance port) are applied whenever firewalld is active — whether
+  it already was, or this role just enabled it.
 
 ## Why per-area flags instead of one global switch
 

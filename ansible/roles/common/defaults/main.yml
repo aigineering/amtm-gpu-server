@@ -8,8 +8,11 @@ common_packages:
   - curl
   - tar
 
-# Master switch for firewalld. If false (the safe default), this role never enables
-# or starts firewalld on a host where it isn't already active — it only adds the
-# vLLM port rules if firewalld is already the host's active firewall manager. See
-# docs/host-safety-model.md.
+# Master switch for firewalld. If false (the safe default) and firewalld isn't
+# already active, the whole firewall area is skipped with a notice — the host may
+# legitimately rely on a security group or external firewall instead. If true, the
+# package is installed and the service started/enabled (idempotently, even if
+# already running). Rules (ssh explicitly, so a fresh enable can't lock out the
+# playbook's own SSH access, plus the vLLM ports) are applied whenever firewalld
+# is active, managed or not. See docs/host-safety-model.md.
 firewalld_manage: false
