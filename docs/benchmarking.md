@@ -112,6 +112,24 @@ even where the SLO is stated at p95.
   demand). Caveat: random tokens defeat prefix caching, so its numbers are
   pessimistic for chat — used for controlled sweeps, not headline numbers.
 
+### Multi-turn workload intensity — watch before trusting KV-offload deltas
+
+Observation from the first baseline run (2026-07-15): the harness's **early
+stop** ended the multi-turn pass after ~62s with only 3 of 60 conversations
+fully finished (312 turn-samples — statistically fine for latency numbers, but
+a short runtime accumulates little KV-cache pressure). For the stage-1
+KV-offload on/off comparisons that pressure is the whole point: a too-light
+workload makes offload-on and offload-off read identical and proves nothing.
+
+Validity check for every offload comparison: the `.metrics.txt` snapshots must
+show real prefix-cache evictions during the run. If offload deltas are ~zero
+AND evictions are ~zero, the workload was too light — don't conclude
+"offloading doesn't help"; intensify and re-run. Levers, in order: the
+harness's `--no-early-stop` flag (run all conversations to completion),
+deeper conversations (`benchmark_multi_turn_turns_min/max`), more
+conversations/clients (`benchmark_multi_turn_clients`,
+`benchmark_multi_turn_num_conversations`).
+
 ### Multi-turn conversations (second harness)
 
 `vllm bench serve` sends independent single-shot requests — it cannot replay a
