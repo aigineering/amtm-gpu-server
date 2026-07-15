@@ -1,0 +1,64 @@
+{
+    "compose_file_b64": "LS0tCiMgUmVuZGVyZWQgYnkgdGhlIGB2bGxtYCBBbnNpYmxlIHJvbGUg4oCUIGRvIG5vdCBlZGl0IGJ5IGhhbmQsIGNoYW5nZXMgd2lsbCBiZQojIG92ZXJ3cml0dGVuIG9uIHRoZSBuZXh0IHBsYXlib29rIHJ1bi4gRWRpdCB2bGxtX2luc3RhbmNlcyBpbiBncm91cF92YXJzIGluc3RlYWQuCnNlcnZpY2VzOgogIHZsbG0tZ2VtbWEtMjZiLWE0YjoKICAgIGltYWdlOiAidmxsbS92bGxtLW9wZW5haTpsYXRlc3QiCiAgICBjb250YWluZXJfbmFtZTogInZsbG0tZ2VtbWEtMjZiLWE0YiIKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBpcGM6IGhvc3QKICAgIHBvcnRzOgogICAgICAtICI4MDAxOjgwMDEiCiAgICBlbnZpcm9ubWVudDoKICAgICAgIyBNb2RlbCByZXBvIGlzIGFscmVhZHkgb24gZGlzayDigJQgbmV2ZXIgZmFsbCBiYWNrIHRvIGEgSHVnZ2luZyBGYWNlIEh1YiBjYWxsLgogICAgICBIRl9IVUJfT0ZGTElORTogIjEiCiAgICAgIFRSQU5TRk9STUVSU19PRkZMSU5FOiAiMSIKICAgICAgIyBSZXF1aXJlcyAiQXV0aG9yaXphdGlvbjogQmVhcmVyIDxrZXk+IiBvbiAvdjEvKiAoaGVhbHRoL21ldHJpY3Mgc3RheQogICAgICAjIG9wZW4sIHNvIHRoZSBoZWFsdGhjaGVjayBiZWxvdyBrZWVwcyB3b3JraW5nKS4gU2V0IHZpYSBhbnNpYmxlLXZhdWx0CiAgICAgICMgKHZhdWx0X3ZsbG1fYXBpX2tleSkg4oCUIHNlZSBkb2NzL3ZsbG0tY29uZmlndXJhdGlvbi5tZC4KICAgICAgVkxMTV9BUElfS0VZOiAiUkVEQUNURUQiCiAgICB2b2x1bWVzOgogICAgICAtICIvb3B0L21vZGVscy9nZW1tYS00LTI2Yi1hNGItaXQtYXdxLTRiaXQ6L21vZGVscy9nZW1tYS0yNmItYTRiOnJvIgogICAgIyB2TExNIHByb2ZpbGVzIGZyZWUgR1BVIG1lbW9yeSBhdCBzdGFydHVwIHRvIHNpemUgaXRzIEtWIGNhY2hlLiBUd28gZW5naW5lcwogICAgIyBwcm9maWxpbmcgY29uY3VycmVudGx5IGVhY2ggc2VlIHRoZSBvdGhlcidzIGluLWZsaWdodCBhbGxvY2F0aW9ucyBhbmQKICAgICMgY29tcHV0ZSBnYXJiYWdlIChuZWdhdGl2ZSBLViBtZW1vcnkpIOKAlCBzbyBpbnN0YW5jZXMgc3RhcnQgc3RyaWN0bHkgb25lIGF0CiAgICAjIGEgdGltZTogZWFjaCB3YWl0cyBmb3IgdGhlIHByZXZpb3VzIG9uZSdzIC9oZWFsdGggYmVmb3JlIHN0YXJ0aW5nLgogICAgaGVhbHRoY2hlY2s6CiAgICAgIHRlc3Q6IFsiQ01ELVNIRUxMIiwgImN1cmwgLXNmIGh0dHA6Ly9sb2NhbGhvc3Q6ODAwMS9oZWFsdGggfHwgZXhpdCAxIl0KICAgICAgaW50ZXJ2YWw6IDEwcwogICAgICB0aW1lb3V0OiA1cwogICAgICByZXRyaWVzOiAzCiAgICAgIHN0YXJ0X3BlcmlvZDogNjAwcwogICAgY29tbWFuZDoKICAgICAgLSAiLS1tb2RlbCIKICAgICAgLSAiL21vZGVscy9nZW1tYS0yNmItYTRiIgogICAgICAtICItLXNlcnZlZC1tb2RlbC1uYW1lIgogICAgICAtICJnZW1tYS0yNmItYTRiIgogICAgICAtICItLXBvcnQiCiAgICAgIC0gIjgwMDEiCiAgICAgIC0gIi0tZ3B1LW1lbW9yeS11dGlsaXphdGlvbiIKICAgICAgLSAiMC45IgogICAgICAtICItLW1heC1tb2RlbC1sZW4iCiAgICAgIC0gIjgxOTIiCiAgICAgIC0gIi0tZW5hYmxlLXByZWZpeC1jYWNoaW5nIgogICAgICAtICItLWVuYWJsZS1jaHVua2VkLXByZWZpbGwiCiAgICAgIC0gIi0tbGltaXQtbW0tcGVyLXByb21wdCIKICAgICAgLSAie1wiaW1hZ2VcIjogMiwgXCJ2aWRlb1wiOiAwfSIKICAgICAgLSAiLS1rdi1vZmZsb2FkaW5nLWJhY2tlbmQiCiAgICAgIC0gIm5hdGl2ZSIKICAgICAgLSAiLS1rdi1vZmZsb2FkaW5nLXNpemUiCiAgICAgIC0gIjI0IgogICAgZGVwbG95OgogICAgICByZXNvdXJjZXM6CiAgICAgICAgcmVzZXJ2YXRpb25zOgogICAgICAgICAgZGV2aWNlczoKICAgICAgICAgICAgLSBkcml2ZXI6IG52aWRpYQogICAgICAgICAgICAgIGNvdW50OiBhbGwKICAgICAgICAgICAgICBjYXBhYmlsaXRpZXM6IFsiZ3B1Il0K",
+    "host": {
+        "gpu": "NVIDIA L40S, 610.43.02",
+        "instance_type": "g6e.2xlarge"
+    },
+    "profile_name": "solo-gemma-26b-a4b-8k-kv",
+    "repo_git_dirty": false,
+    "repo_git_sha": "5861469c6ba03adf90e47f659477696c764f3e43",
+    "run_id": "solo-gemma-26b-a4b-8k-kv-172239b7cb",
+    "timestamp_utc": "2026-07-15T20:07:04Z",
+    "vllm_image": "vllm/vllm-openai:latest",
+    "vllm_image_digests": [
+        "vllm/vllm-openai@sha256:e4f88a835143cd22aee2397a26ec6bb80b3a4a6fe0c882bcbc63822904766089"
+    ],
+    "vllm_instances": [
+        {
+            "extra_args": [
+                "--enable-prefix-caching",
+                "--enable-chunked-prefill",
+                "--limit-mm-per-prompt",
+                "{\"image\": 2, \"video\": 0}",
+                "--kv-offloading-backend",
+                "native",
+                "--kv-offloading-size",
+                "24"
+            ],
+            "gpu_memory_utilization": 0.9,
+            "max_model_len": 8192,
+            "model_path": "/opt/models/gemma-4-26b-a4b-it-awq-4bit",
+            "name": "gemma-26b-a4b",
+            "port": 8001,
+            "repo_id": "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit",
+            "revision": "main"
+        }
+    ],
+    "workload": {
+        "concurrency_tiers": [
+            1,
+            5,
+            20,
+            50
+        ],
+        "context_input_fraction": 0.8,
+        "context_output_len": 256,
+        "context_stress": true,
+        "dataset": "sharegpt",
+        "dataset_path": "/opt/models/benchmark/datasets/sharegpt.json",
+        "multi_turn": true,
+        "multi_turn_conversations_per_client": 3,
+        "multi_turn_tiers": [
+            1,
+            5,
+            20,
+            50
+        ],
+        "multi_turn_turns": "12-18",
+        "prompts_per_user": 8,
+        "scenarios": [
+            "solo"
+        ],
+        "seed": 42
+    }
+}
