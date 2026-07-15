@@ -40,6 +40,11 @@
     --max-active-conversations {{ benchmark_multi_turn_max_active_conversations }}
     {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
     > {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt 2>&1
+  args:
+    # Resumability: the captured output is the completion marker. NOTE: a
+    # failed harness run leaves its error text here too — delete the file to
+    # retry that instance.
+    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt"
   changed_when: true
   async: 7200
   poll: 15

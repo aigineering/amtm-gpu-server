@@ -1,38 +1,62 @@
 ---
 # Solo baseline for one instance ({{ bench_instance.name }}): stop everything
-# else, wait for this one to be healthy, sweep the tiers.
+# else, wait for this one to be healthy, sweep the tiers. Resumable: tiers
+# whose result file already exists are skipped, and if ALL tiers are done the
+# whole stop/start cycle (a multi-minute model reload) is skipped too.
 
-- name: "Solo {{ bench_instance.name }}: stop the other instances"
-  ansible.builtin.command:
-    cmd: docker compose stop {{ other_services | join(' ') }}
-    chdir: "{{ vllm_deploy_dir }}"
-  vars:
-    other_services: >-
-      {{ vllm_instances | rejectattr('name', 'equalto', bench_instance.name)
-         | map(attribute='name') | map('regex_replace', '^', 'vllm-') | list }}
-  when: vllm_instances | length > 1
-  changed_when: true
-
-- name: "Solo {{ bench_instance.name }}: ensure the instance is running"
-  ansible.builtin.command:
-    cmd: docker compose start vllm-{{ bench_instance.name }}
-    chdir: "{{ vllm_deploy_dir }}"
-  changed_when: true
-
-# curl, not the uri module — this host's Python networking has repeatedly
-# disagreed with reality (see the ASN1 saga); curl is what we verify with.
-- name: "Solo {{ bench_instance.name }}: wait for health"
-  ansible.builtin.command: curl -sf http://localhost:{{ bench_instance.port }}/health
-  register: benchmark_solo_health
-  until: benchmark_solo_health.rc == 0
-  retries: 90
-  delay: 10
-  changed_when: false
-
-- name: "Solo {{ bench_instance.name }}: sweep concurrency tiers"
-  ansible.builtin.include_tasks: bench_single.yml
+- name: "Solo {{ bench_instance.name }}: check which tier results already exist"
+  ansible.builtin.stat:
+    path: "{{ benchmark_run_dir }}/solo-{{ bench_instance.name }}-c{{ item }}.json"
+  register: benchmark_solo_done
   loop: "{{ benchmark_concurrency_tiers }}"
-  loop_control:
-    loop_var: bench_tier
-  vars:
-    bench_scenario: solo
+
+- name: "Solo {{ bench_instance.name }}: compute missing tiers"
+  ansible.builtin.set_fact:
+    benchmark_solo_missing_tiers: >-
+      {{ benchmark_solo_done.results | rejectattr('stat.exists')
+         | map(attribute='item') | list }}
+
+- name: "Solo {{ bench_instance.name }}: report resume state"
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'all tiers already benchmarked — skipping'
+         if benchmark_solo_missing_tiers | length == 0
+         else 'tiers to run: ' ~ benchmark_solo_missing_tiers | join(', ') }}
+
+- name: "Solo {{ bench_instance.name }}: run missing tiers"
+  when: benchmark_solo_missing_tiers | length > 0
+  block:
+    - name: "Solo {{ bench_instance.name }}: stop the other instances"
+      ansible.builtin.command:
+        cmd: docker compose stop {{ other_services | join(' ') }}
+        chdir: "{{ vllm_deploy_dir }}"
+      vars:
+        other_services: >-
+          {{ vllm_instances | rejectattr('name', 'equalto', bench_instance.name)
+             | map(attribute='name') | map('regex_replace', '^', 'vllm-') | list }}
+      when: vllm_instances | length > 1
+      changed_when: true
+
+    - name: "Solo {{ bench_instance.name }}: ensure the instance is running"
+      ansible.builtin.command:
+        cmd: docker compose start vllm-{{ bench_instance.name }}
+        chdir: "{{ vllm_deploy_dir }}"
+      changed_when: true
+
+    # curl, not the uri module — this host's Python networking has repeatedly
+    # disagreed with reality (see the ASN1 saga); curl is what we verify with.
+    - name: "Solo {{ bench_instance.name }}: wait for health"
+      ansible.builtin.command: curl -sf http://localhost:{{ bench_instance.port }}/health
+      register: benchmark_solo_health
+      until: benchmark_solo_health.rc == 0
+      retries: 90
+      delay: 10
+      changed_when: false
+
+    - name: "Solo {{ bench_instance.name }}: sweep missing concurrency tiers"
+      ansible.builtin.include_tasks: bench_single.yml
+      loop: "{{ benchmark_solo_missing_tiers }}"
+      loop_control:
+        loop_var: bench_tier
+      vars:
+        bench_scenario: solo

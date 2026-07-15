@@ -227,6 +227,16 @@ stops/starts containers. Useful narrowing knobs (pass as `-e`):
 `benchmark_multi_turn=false` to skip the multi-turn pass. Each run leaves a
 directory under `benchmarks/results/` — commit it; the history is the point.
 
+**Runs are resumable.** The run id is `<profile>-<hash-of-applied-config>`,
+not a timestamp: re-running the same profile+config resumes into the same
+directory, and every result file already present is skipped — including the
+whole stop/start model-reload cycle when an instance's solo tiers are all
+done. Changing anything in the applied config changes the hash and starts a
+fresh directory, so one directory can never mix configurations. To force a
+redo, delete the run directory (or a specific result file) on the host under
+`/opt/benchmark-results/`. Caveat: a *failed* multi-turn run still leaves its
+output `.txt` as a completion marker — delete that file to retry it.
+
 ## Interpreting results
 
 Each rendered table row is one (scenario, model, user-tier) combination:

@@ -25,6 +25,8 @@
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
       --result-filename colocated-{{ item.name }}-c{{ bench_tier }}.json
+    # Resumability: the result file is the completion marker.
+    creates: "{{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.json"
   async: 7200
   poll: 0
   changed_when: true
@@ -43,11 +45,15 @@
   loop: "{{ benchmark_colo_jobs.results }}"
   loop_control:
     label: "{{ item.item.name }}"
+  # Jobs skipped by creates: (already-done runs) have no job id to wait on.
+  when: item.ansible_job_id is defined
 
 - name: "Co-located c{{ bench_tier }}: snapshot /metrics per endpoint"
-  ansible.builtin.shell: >-
-    curl -s http://localhost:{{ item.port }}/metrics >
-    {{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.metrics.txt
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ item.port }}/metrics >
+      {{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.metrics.txt
+    creates: "{{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.metrics.txt"
   changed_when: true
   loop: "{{ vllm_instances }}"
   loop_control:

@@ -27,10 +27,21 @@
       the benchmark dataset and multi-turn harness alongside the models.
   when: not benchmark_dataset_check.stat.exists
 
+- name: Snapshot the rendered compose file (the applied config)
+  ansible.builtin.slurp:
+    src: "{{ vllm_deploy_dir }}/docker-compose.yml"
+  register: benchmark_compose_snapshot
+
+# The run id is profile name + hash of the APPLIED config — not a timestamp —
+# so re-running the same profile+config lands in the same directory and every
+# already-produced result file acts as a completion marker (resumable runs).
+# Any config change → new hash → new directory → full re-run; one directory
+# can never mix differing configs. To force a redo, delete the run directory
+# on the host.
 - name: Compose the run id
   ansible.builtin.set_fact:
     benchmark_run_id: >-
-      {{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ profile_name }}
+      {{ profile_name }}-{{ (benchmark_compose_snapshot.content | b64decode | hash('sha256'))[:10] }}
     benchmark_repo_git_sha: "{{ lookup('pipe', 'git -C ' ~ playbook_dir ~ ' rev-parse HEAD') }}"
     benchmark_repo_git_dirty: "{{ (lookup('pipe', 'git -C ' ~ playbook_dir ~ ' status --porcelain') | length) > 0 }}"
 
@@ -85,11 +96,7 @@
     - not benchmark_pylibs_check.stat.exists
 
 # --- Result record: snapshot what is ACTUALLY running (docs/benchmarking.md) —
-
-- name: Snapshot the rendered compose file (the applied config)
-  ansible.builtin.slurp:
-    src: "{{ vllm_deploy_dir }}/docker-compose.yml"
-  register: benchmark_compose_snapshot
+# (compose snapshot taken above, before the run id was derived from it)
 
 - name: Read the serving image digest
   ansible.builtin.command: >-
@@ -119,6 +126,8 @@
     dest: "{{ benchmark_run_dir }}/metadata.json"
     mode: "0644"
     content: "{{ benchmark_metadata | to_nice_json }}"
+    # Keep the original run's timestamp when resuming into an existing dir.
+    force: false
   vars:
     benchmark_metadata:
       run_id: "{{ benchmark_run_id | trim }}"

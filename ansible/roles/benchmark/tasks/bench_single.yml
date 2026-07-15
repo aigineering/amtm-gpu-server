@@ -26,13 +26,18 @@
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
       --result-filename {{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json
+    # Resumability: the result file is the completion marker.
+    creates: "{{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json"
   changed_when: true
   # Long runs must survive control-connection hiccups.
   async: 7200
   poll: 15
 
 - name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
-  ansible.builtin.shell: >-
-    curl -s http://localhost:{{ bench_instance.port }}/metrics >
-    {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ bench_instance.port }}/metrics >
+      {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
+    # Don't overwrite a completed run's post-run snapshot on resume.
+    creates: "{{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt"
   changed_when: true
