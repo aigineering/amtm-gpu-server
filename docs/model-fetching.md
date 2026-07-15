@@ -16,7 +16,7 @@ or not the box currently has internet access. So fetching is its own playbook,
   [host-safety-model.md](host-safety-model.md)): it checks reachability to
   `huggingface.co` first and fails with a specific, actionable message if the window
   isn't open, rather than hanging on a blocked connection or failing deep inside
-  `huggingface-cli` with a confusing error.
+  `hf` CLI with a confusing error.
 
 ## What it does, in order
 
@@ -27,7 +27,7 @@ or not the box currently has internet access. So fetching is its own playbook,
    so cleanup is just deleting that directory.
 4. For each instance, skips the download if `model_path` already contains a
    `config.json` (unless `model_fetch_force: true`); otherwise runs
-   `huggingface-cli download <repo_id> --revision <revision> --local-dir <model_path>`.
+   `hf download <repo_id> --revision <revision> --local-dir <model_path>`.
 5. Reports disk usage per model directory when done.
 
 ## Running it
@@ -70,7 +70,7 @@ git-ignored (see `.gitignore`) so it can't be committed by accident.
 
 ## Handling large downloads
 
-- `huggingface-cli download` resumes interrupted transfers automatically — if the
+- `hf download` resumes interrupted transfers automatically — if the
   egress window closes mid-download, re-running the playbook once it reopens
   continues rather than starting over.
 - The download task runs with `async`/`poll` (currently a 4-hour ceiling) so a

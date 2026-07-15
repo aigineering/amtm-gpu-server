@@ -74,15 +74,17 @@
     label: "{{ item.item.name }}"
 
 - name: Download model repos from Hugging Face Hub
+  # huggingface_hub 1.0 renamed the CLI entry point from huggingface-cli to hf
+  # (and HF_TOKEN is the canonical token env var).
   ansible.builtin.command: >-
-    {{ model_fetch_venv }}/bin/huggingface-cli download {{ item.item.repo_id }}
+    {{ model_fetch_venv }}/bin/hf download {{ item.item.repo_id }}
     --revision {{ item.item.revision | default('main') }}
     --local-dir {{ item.item.model_path }}
   environment:
-    HUGGING_FACE_HUB_TOKEN: "{{ model_fetch_hf_token }}"
+    HF_TOKEN: "{{ model_fetch_hf_token }}"
   # Large repos (the MoE model especially) can take a long time; run asynchronously
   # so an SSH/control-node hiccup doesn't kill a multi-hour transfer, and rely on
-  # huggingface-cli's built-in resume support if it does get interrupted.
+  # the hf CLI's built-in resume support if it does get interrupted.
   async: 14400
   poll: 30
   changed_when: true
