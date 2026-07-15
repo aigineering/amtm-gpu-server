@@ -5,8 +5,12 @@ name: benchmark
 #
 # Required repo secrets:
 #   AWS_SSH_KEY   — contents of .ssh/aws_key (the OpenSSH private key)
-#   VLLM_API_KEY  — the serving API key (vault_vllm_api_key)
 #   HF_TOKEN      — Hugging Face token (only needed for gated repos; may be empty)
+#
+# The vLLM API key is NOT a secret: each job generates a fresh random key and
+# applies it with the profile (rotation is free — the run-identity hash excludes
+# the key). Side effect: after CI finishes, the box serves with a key nobody
+# knows; re-apply locally with the vault key to use the endpoints yourself.
 #
 # One GPU: matrix runs max-parallel 1, and the concurrency group stops two
 # workflow runs from overlapping. Benchmarks are resumable (markers live on the
@@ -66,13 +70,19 @@ jobs:
           printf '%s\n' "${{ secrets.AWS_SSH_KEY }}" > .ssh/aws_key
           chmod 600 .ssh/aws_key
 
+      - name: Generate ephemeral vLLM API key (rotates every job)
+        run: |
+          key=$(openssl rand -hex 32)
+          echo "::add-mask::$key"
+          echo "VLLM_EPHEMERAL_KEY=$key" >> "$GITHUB_ENV"
+
       - name: Apply profile ${{ matrix.profile }}
         working-directory: ansible
         run: |
           ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml \
             --tags vllm \
             -e @profiles/${{ matrix.profile }}.yml \
-            -e vault_vllm_api_key='${{ secrets.VLLM_API_KEY }}' \
+            -e vault_vllm_api_key="$VLLM_EPHEMERAL_KEY" \
             -e vault_hf_token='${{ secrets.HF_TOKEN }}'
 
       - name: Benchmark ${{ matrix.profile }}
@@ -80,7 +90,7 @@ jobs:
         run: |
           ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
             -e @profiles/${{ matrix.profile }}.yml \
-            -e vault_vllm_api_key='${{ secrets.VLLM_API_KEY }}' \
+            -e vault_vllm_api_key="$VLLM_EPHEMERAL_KEY" \
             -e vault_hf_token='${{ secrets.HF_TOKEN }}'
 
       - name: Render reports (markdown + html into the new run dir)

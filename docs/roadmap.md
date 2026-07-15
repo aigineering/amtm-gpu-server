@@ -58,8 +58,11 @@ Goal: run the full evaluation conveniently from CI.
 
 - Matrix job per profile, `max-parallel: 1` + a workflow concurrency group —
   strictly one benchmark at a time on the one GPU.
-- Repo secrets: `AWS_SSH_KEY`, `VLLM_API_KEY`, `HF_TOKEN`. Secrets flow as
-  `-e vault_*=` extra-vars, so CI needs no ansible-vault file or password.
+- Repo secrets: `AWS_SSH_KEY`, `HF_TOKEN` — flowing as `-e vault_*=`
+  extra-vars, so CI needs no ansible-vault file or password. The vLLM API key
+  is not a secret: each job generates a fresh random key and applies it
+  (rotation is free since the run-identity hash excludes the key); after CI,
+  the box is locked behind a key nobody knows until the next apply.
 - Each job applies the profile, benchmarks it, and uploads only *new* result
   directories as an artifact (resumability markers live on the box, so
   re-dispatching skips completed work and produces no churn).
