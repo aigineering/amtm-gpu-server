@@ -88,16 +88,16 @@ SLO_ITL_P95_MS = 100
 
 
 MULTITURN_FILE_RE = re.compile(r"^multiturn-(?P<name>.+)-c(?P<clients>\d+)\.txt$")
-# stats rows: label then count/mean/std/min/25%/50%/75%/90%/99%/max
-MULTITURN_ROW_RE = re.compile(
-    r"^(?P<label>[a-z_]+)\s+" + r"\s+".join(r"(?P<c%d>[\d.,-]+)" % i for i in range(10)) + r"\s*$",
-    re.MULTILINE)
-MULTITURN_COLS = ["count", "mean", "std", "min", "p25", "p50", "p75", "p90", "p99", "max"]
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def parse_multiturn(path):
-    """Parse the multi-turn harness's stdout report; None if it isn't one."""
-    text = path.read_text(errors="replace")
+    """Parse the multi-turn harness's stdout report; None if it isn't one.
+
+    Column-agnostic: reads the header row (count/mean/std/min/…/max) instead of
+    assuming a fixed percentile set, and strips ANSI colors first.
+    """
+    text = ANSI_RE.sub("", path.read_text(errors="replace"))
     if "Statistics summary" not in text:
         return None  # failed run or unexpected format — leave as a raw file
     stats = {"rows": {}}
@@ -105,13 +105,23 @@ def parse_multiturn(path):
         m = re.search(rf"^{key} = ([\d.]+)", text, re.MULTILINE)
         if m:
             stats[key] = float(m.group(1))
-    for m in MULTITURN_ROW_RE.finditer(text):
-        try:
-            stats["rows"][m.group("label")] = {
-                col: float(m.group(f"c{i}").replace(",", "")) for i, col in enumerate(MULTITURN_COLS)
-            }
-        except ValueError:
+    header = None
+    for line in text.splitlines():
+        parts = line.split()
+        if not parts:
             continue
+        if header is None:
+            if parts[0] == "count":
+                # normalize: 25% -> p25, 99% -> p99; count/mean/std/min/max as-is
+                header = [("p" + p[:-1]) if p.endswith("%") else p for p in parts]
+            continue
+        if len(parts) == len(header) + 1 and re.fullmatch(r"[a-z_]+", parts[0]):
+            try:
+                stats["rows"][parts[0]] = {
+                    header[i]: float(parts[i + 1].replace(",", "")) for i in range(len(header))
+                }
+            except ValueError:
+                continue
     return stats if stats["rows"] else None
 
 
@@ -145,6 +155,8 @@ def load_runs(only=None):
             results.append({**m.groupdict(), "model": model_id or m.group("name"), "data": data})
         multiturn = []
         for p in sorted(run_dir.glob("multiturn-*.txt")):
+            if p.name.endswith(".metrics.txt"):
+                continue  # /metrics snapshots, not harness reports
             fm = MULTITURN_FILE_RE.match(p.name)
             multiturn.append({"file": p.name,
                               "name": fm.group("name") if fm else p.name,

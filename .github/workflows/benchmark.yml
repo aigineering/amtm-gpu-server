@@ -1,0 +1,136 @@
+name: benchmark
+
+# Runs benchmark profiles against the AWS test box (which must be up, deployed
+# once, and have had fetch-models run — the health check fails fast if not).
+#
+# Required repo secrets:
+#   AWS_SSH_KEY   — contents of .ssh/aws_key (the OpenSSH private key)
+#   VLLM_API_KEY  — the serving API key (vault_vllm_api_key)
+#   HF_TOKEN      — Hugging Face token (only needed for gated repos; may be empty)
+#
+# One GPU: matrix runs max-parallel 1, and the concurrency group stops two
+# workflow runs from overlapping. Benchmarks are resumable (markers live on the
+# box), so re-dispatching skips whatever already completed.
+on:
+  workflow_dispatch:
+    inputs:
+      profile_glob:
+        description: "Profiles to run (glob under ansible/profiles/, without .yml)"
+        default: "solo-gemma-*"
+        required: true
+
+concurrency:
+  group: gpu-test-box
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  list-profiles:
+    runs-on: ubuntu-latest
+    outputs:
+      profiles: ${{ steps.list.outputs.profiles }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        working-directory: ansible/profiles
+        run: |
+          profiles=$(ls ${{ inputs.profile_glob }}.yml | sed 's/\.yml$//' | jq -R -s -c 'split("\n")[:-1]')
+          [ "$profiles" != "[]" ] || { echo "no profiles match '${{ inputs.profile_glob }}'" >&2; exit 1; }
+          echo "profiles=$profiles" >> "$GITHUB_OUTPUT"
+          echo "matched: $profiles"
+
+  benchmark:
+    needs: list-profiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      max-parallel: 1          # one GPU — strictly one profile at a time
+      fail-fast: false         # a broken profile shouldn't kill the campaign
+      matrix:
+        profile: ${{ fromJson(needs.list-profiles.outputs.profiles) }}
+    env:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ansible + collections
+        run: |
+          pipx install ansible-core
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSH key
+        run: |
+          mkdir -p .ssh
+          printf '%s\n' "${{ secrets.AWS_SSH_KEY }}" > .ssh/aws_key
+          chmod 600 .ssh/aws_key
+
+      - name: Apply profile ${{ matrix.profile }}
+        working-directory: ansible
+        run: |
+          ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml \
+            --tags vllm \
+            -e @profiles/${{ matrix.profile }}.yml \
+            -e vault_vllm_api_key='${{ secrets.VLLM_API_KEY }}' \
+            -e vault_hf_token='${{ secrets.HF_TOKEN }}'
+
+      - name: Benchmark ${{ matrix.profile }}
+        working-directory: ansible
+        run: |
+          ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+            -e @profiles/${{ matrix.profile }}.yml \
+            -e vault_vllm_api_key='${{ secrets.VLLM_API_KEY }}' \
+            -e vault_hf_token='${{ secrets.HF_TOKEN }}'
+
+      - name: Stage new results (only dirs not already committed)
+        id: stage
+        run: |
+          mkdir -p /tmp/new-results
+          git status --porcelain benchmarks/results | awk '$1 == "??" {print $2}' | while read -r p; do
+            cp -r "$p" /tmp/new-results/
+          done
+          if [ -n "$(ls -A /tmp/new-results)" ]; then
+            echo "have_results=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_results=false" >> "$GITHUB_OUTPUT"
+            echo "nothing new (already committed for this profile+config)"
+          fi
+
+      - name: Upload result artifact
+        if: steps.stage.outputs.have_results == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.profile }}
+          path: /tmp/new-results/
+          if-no-files-found: error
+
+  collect:
+    needs: benchmark
+    if: always() && needs.benchmark.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          merge-multiple: true
+          path: benchmarks/results/
+
+      - name: Render reports
+        run: python3 benchmarks/render_results.py
+
+      - name: Commit and push results (single push, GITHUB_TOKEN — no PAT)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/results
+          if git diff --cached --quiet; then
+            echo "no new results to commit"
+            exit 0
+          fi
+          git commit -m "Benchmark results: ${{ inputs.profile_glob }} (workflow run ${{ github.run_id }})"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}

@@ -51,6 +51,24 @@ Decisions (settled 2026-07-15):
   name, git SHA and timestamp, plus a comparison-table renderer. Revisit an
   external store only at high run volume.
 
+## v0.3 — benchmark campaigns from GitHub Actions
+
+Goal: run the full evaluation conveniently from CI.
+`.github/workflows/benchmark.yml` (workflow_dispatch, takes a profile glob):
+
+- Matrix job per profile, `max-parallel: 1` + a workflow concurrency group —
+  strictly one benchmark at a time on the one GPU.
+- Repo secrets: `AWS_SSH_KEY`, `VLLM_API_KEY`, `HF_TOKEN`. Secrets flow as
+  `-e vault_*=` extra-vars, so CI needs no ansible-vault file or password.
+- Each job applies the profile, benchmarks it, and uploads only *new* result
+  directories as an artifact (resumability markers live on the box, so
+  re-dispatching skips completed work and produces no churn).
+- Collector job downloads all artifacts, renders the reports, and makes ONE
+  push using the built-in `GITHUB_TOKEN` (`permissions: contents: write`) — no
+  PAT, no extra setup.
+- Preconditions the workflow does not create: the box is up (`infra/env.sh`),
+  deployed once, and fetch-models has run.
+
 ## Later / parked
 
 - KV cache offloading to CPU RAM — decision notes captured in
