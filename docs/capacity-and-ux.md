@@ -2,10 +2,10 @@
 
 **Living analysis.** Interprets the measured benchmark data
 ([benchmarking.md](benchmarking.md), `benchmarks/results/`) into product
-terms: how many users, what experience, where the limits are. Based on runs as
-of 2026-07-15 (26B-A4B and 31B AWQ solo runs, baseline pair, kv-vs-off twin);
-numbers firm up as the stage-1/2/3 campaign lands. Hardware: one L40S (48 GB),
-g6e.2xlarge.
+terms: how many users, what experience, where the limits are. The measured
+table below is **empty pending the m2 campaign** (pre-m2 shakedown results
+were removed — they carried the same-seed and early-stop methodology flaws;
+git history retains them). Hardware: one L40S (48 GB), g6e.2xlarge.
 
 ## Two SLO classes, not one
 
@@ -25,18 +25,27 @@ represents roughly 5–10 logged-in users. The "real users" column below uses
 that translation; it is the honest-but-estimated part of this analysis and
 should be recalibrated against the client's actual traffic once any exists.
 
-## Scenario table (single L40S, measured evidence cited)
+## Scenario table — measured (single L40S)
+
+To be filled from m2 campaign results. Every row must cite its evidence (run
+dir + row) and state which SLO class judged it.
 
 | Scenario | Model | Optimal active load | Real-user estimate | Experience at that load | Evidence |
 |---|---|---|---|---|---|
-| Short chat | 26B-A4B (MoE) | ~50 active; knee likely 100+ | ~250–500 | TTFT p95 <0.5s, 24 tok/s per user (3× reading speed) — indistinguishable from unloaded | solo c50: ITL 42ms, throughput still scaling 875→1,485 tok/s |
-| Short chat | 31B (dense) | ~20–30 active; fails by 50 | ~100–200 | At 20: TTFT p95 1.4s, smooth streaming. At 50: TTFT 4.2s, ITL 184ms — visibly laggy | solo 32k run: PASS ≤20, FAIL @50 |
-| Deep multi-turn (2–5k history) | 26B-A4B | ~20–50 rotating clients | ~150–400 | TTFT mean 145–405ms (cached history prefills), ~7 turns/s sustained | multi-turn c20/c50 tables |
-| Both models co-located (production topology) | 26B + 3B | 50 + 50 active | several hundred | All SLO tiers PASS on both models | baseline run: 8/8 PASS |
-| Long-document, occasional (≤32k) | 31B @ 32k | **async only**: ~4–6 concurrent jobs | a queue, not a crowd | 10–15s to first token per job alone; minutes when queued — fine for "analyzing…" UX, unacceptable for chat | context rows: c1 TTFT 15s; ~6 slots; c20 288s |
-| Long-document, interactive at scale | any | **not viable on this box** | — | queueing collapses TTFT to minutes | context c20/c50 across profiles |
+| Short chat | *TBD* | | | | |
+| Deep multi-turn | *TBD* | | | | |
+| Co-located pair (production topology) | *TBD* | | | | |
+| Long-document, occasional (async class) | *TBD* | | | | |
+| Long-document, interactive at scale | *TBD* | | | | |
 
-## The structural rule behind all of it
+### Format example (illustrative only — values from flawed pre-m2 shakedown runs, do NOT cite)
+
+| Scenario | Model | Optimal active load | Real-user estimate | Experience at that load | Evidence |
+|---|---|---|---|---|---|
+| Short chat | 26B-A4B (MoE) | ~50 active; knee likely 100+ | ~250–500 | TTFT p95 <0.5s, 24 tok/s per user (3× reading speed) — indistinguishable from unloaded | *example:* solo c50 row of `<run-dir>` |
+| Long-document, occasional (≤32k) | 31B @ 32k | **async only**: ~4–6 concurrent jobs | a queue, not a crowd | 10–15s to first token per job alone; minutes when queued — fine for "analyzing…" UX, unacceptable for chat | *example:* context c1/c20 rows of `<run-dir>` |
+
+## The structural rule behind all of it (preliminary — from shakedown data)
 
 The box has two nearly independent budgets: **decode throughput** (rationed by
 active user count — generous, especially for the MoE at ~4× the dense model's
