@@ -16,6 +16,21 @@ services:
       TRANSFORMERS_OFFLINE: "1"
     volumes:
       - "{{ instance.model_path }}:/models/{{ instance.name }}:ro"
+    # vLLM profiles free GPU memory at startup to size its KV cache. Two engines
+    # profiling concurrently each see the other's in-flight allocations and
+    # compute garbage (negative KV memory) — so instances start strictly one at
+    # a time: each waits for the previous one's /health before starting.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:{{ instance.port }}/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: {{ vllm_healthcheck_start_period | default('600s') }}
+{% if not loop.first %}
+    depends_on:
+      vllm-{{ vllm_instances[loop.index0 - 1].name }}:
+        condition: service_healthy
+{% endif %}
     command:
       - "--model"
       - "/models/{{ instance.name }}"
@@ -28,7 +43,9 @@ services:
       - "--max-model-len"
       - "{{ instance.max_model_len | string }}"
 {% for arg in instance.extra_args | default([]) %}
-      - "{{ arg }}"
+      {# to_json, not bare quoting: args may themselves contain double quotes,
+         e.g. the JSON value of --limit-mm-per-prompt #}
+      - {{ arg | to_json }}
 {% endfor %}
     deploy:
       resources:

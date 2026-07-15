@@ -19,16 +19,18 @@ vllm_instances:
   - name: gemma
     model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"   # full local repo, already on the host
     port: 8001
-    gpu_memory_utilization: 0.6
+    gpu_memory_utilization: 0.68
     max_model_len: 8192
     extra_args:
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
+      - "--limit-mm-per-prompt"
+      - '{"image": 0, "video": 0}'
 
   - name: llama
     model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"
     port: 8002
-    gpu_memory_utilization: 0.3
+    gpu_memory_utilization: 0.2
     max_model_len: 8192
     extra_args:
       - "--enable-prefix-caching"
@@ -36,7 +38,10 @@ vllm_instances:
 ```
 
 `name` and `model_path` are required; everything else has a default in
-`roles/vllm/defaults/main.yml`. `model_path` must point at a full local Hugging Face
+`roles/vllm/defaults/main.yml`. Instances start one at a time (each waits for
+the previous one's `/health`; grace period `vllm_healthcheck_start_period`,
+default 600s) because concurrent vLLM startups corrupt each other's GPU memory
+profiling — see [model-tuning-and-placement.md](model-tuning-and-placement.md). `model_path` must point at a full local Hugging Face
 repo already present on the host — see
 [model-tuning-and-placement.md](model-tuning-and-placement.md) for the expected
 layout, disk/permission guidance, and why `extra_args` defaults to those two flags

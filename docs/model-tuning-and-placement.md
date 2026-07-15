@@ -111,9 +111,27 @@ endpoint automatically.
 
 ## GPU memory split, revisited for chat
 
-The default 0.6 (Gemma) / 0.3 (Llama) split (see
-[vllm-configuration.md](vllm-configuration.md)) leaves ~10% headroom. With
-`--enable-prefix-caching` on, cached prefixes accumulate in KV cache as more
+The validated split on the L40S (~45 GiB usable) is **0.68 (Gemma) / 0.2 (Llama)**.
+The original 0.6/0.3 guess failed on real hardware: `gpu_memory_utilization` caps an
+instance's *total* footprint, and Gemma's ~16.6 GiB of AWQ weights plus vLLM's
+profiling/cudagraph overhead left *negative* KV-cache memory inside a 27 GiB (0.6)
+budget — the engine refuses to start with "No available memory for the cache
+blocks". At 0.68 Gemma gets roughly 10 GiB of KV; Llama's 2.3 GiB of weights leave
+~6 GiB of KV (≈7 concurrent 8k-token chats) inside 0.2.
+
+Two related startup facts worth knowing when re-tuning:
+
+- **Instances start serially, by design.** vLLM sizes its KV cache by profiling
+  free GPU memory at startup; two engines profiling concurrently each see the
+  other's in-flight allocations and compute garbage. The compose template chains
+  `depends_on: service_healthy` so each instance waits for the previous one.
+  `vllm_healthcheck_start_period` (default 600s) is the per-instance grace period.
+- **Gemma is a multimodal model, capped to text.** Without limits, vLLM profiles
+  its image/video encoder path at startup, burning several GiB of activation
+  headroom this chat deployment never uses. `--limit-mm-per-prompt
+  '{"image": 0, "video": 0}'` in its `extra_args` disables that.
+
+With `--enable-prefix-caching` on, cached prefixes accumulate in KV cache as more
 conversations happen — if you see cache evictions or latency creeping up under real
 traffic, that headroom (or lowering `--max-model-len`) is the first thing to revisit,
 before assuming you need to shrink the other model's share.

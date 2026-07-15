@@ -5,6 +5,13 @@ vllm_deploy_dir: /opt/vllm
 # "latest" is a convenience default for initial experimentation only.
 vllm_image: "vllm/vllm-openai:latest"
 
+# Instances start strictly one at a time (each waits for the previous one's
+# /health) because concurrent vLLM startups corrupt each other's GPU memory
+# profiling. This is the grace period compose allows each instance to become
+# healthy — cover model load from disk + torch.compile + CUDA graph capture.
+# Raise it for very large models or slow disks.
+vllm_healthcheck_start_period: "600s"
+
 # Each entry:
 #   name                    - short identifier, used for container name and mount point
 #   model_path               - absolute path on the HOST to a full local HF-format model

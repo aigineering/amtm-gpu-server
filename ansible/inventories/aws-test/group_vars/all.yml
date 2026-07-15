@@ -23,24 +23,33 @@ model_fetch_force: false
 # playbooks/fetch-models.yml to populate model_path in the first place. See
 # docs/model-tuning-and-placement.md (layout/tuning) and docs/model-fetching.md
 # (how repo_id gets turned into model_path).
+# GPU split (L40S, ~45 GiB usable): gemma's AWQ weights alone are ~16.6 GiB and
+# vLLM needs profiling/cudagraph headroom on top, so 0.6 left negative KV cache
+# memory at startup. 0.68 ≈ 30.6 GiB gives ~10 GiB of KV; llama (2.3 GiB weights)
+# is comfortable at 0.2 ≈ 9 GiB (~6 GiB KV ≈ 7 concurrent 8k-token chats).
+# --limit-mm-per-prompt zeroes image/video support on gemma: we serve text chat
+# only, and multimodal profiling otherwise burns several GiB of activation
+# headroom at startup. See docs/model-tuning-and-placement.md.
 vllm_instances:
   - name: gemma
     model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"
     repo_id: "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
     revision: main
     port: 8001
-    gpu_memory_utilization: 0.6
+    gpu_memory_utilization: 0.68
     max_model_len: 8192
     extra_args:
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
+      - "--limit-mm-per-prompt"
+      - '{"image": 0, "video": 0}'
 
   - name: llama
     model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"
     repo_id: "cyankiwi/Llama-3.2-3B-Instruct-AWQ-INT4"
     revision: main
     port: 8002
-    gpu_memory_utilization: 0.3
+    gpu_memory_utilization: 0.2
     max_model_len: 8192
     extra_args:
       - "--enable-prefix-caching"
