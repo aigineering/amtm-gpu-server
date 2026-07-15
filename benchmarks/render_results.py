@@ -105,7 +105,11 @@ def load_runs(only=None):
             except json.JSONDecodeError:
                 print(f"warning: unparseable {f}", file=sys.stderr)
                 continue
-            results.append({**m.groupdict(), "data": data})
+            # Real model identity: basename of the served model_id
+            # (e.g. /models/gemma-4-26b-a4b-it-awq-4bit); the filename part is
+            # just the instance alias.
+            model_id = (data.get("model_id") or "").rstrip("/").rsplit("/", 1)[-1]
+            results.append({**m.groupdict(), "model": model_id or m.group("name"), "data": data})
         multiturn = sorted(p.name for p in run_dir.glob("multiturn-*.txt"))
         runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
                      "results": results, "multiturn": multiturn})
@@ -149,6 +153,9 @@ def run_section(run):
         f"image: {meta.get('vllm_image', '?')} | "
         f"first run: {meta.get('timestamp_utc', '?')}"
     )
+    model_map = {r["name"]: r["model"] for r in run["results"]}
+    if model_map:
+        out.append("\nmodels: " + ", ".join(f"`{k}` = {v}" for k, v in sorted(model_map.items())))
     if run["results"]:
         total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
         total_in = sum(r["data"].get("total_input_tokens") or 0 for r in run["results"])
@@ -158,7 +165,7 @@ def run_section(run):
         out.append("|" + "---|" * len(headers))
         ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
         for r in ordered:
-            row = [r["scenario"], r["name"], r["tier"]]
+            row = [r["scenario"], r["model"], r["tier"]]
             row += [fmt(key, r["data"].get(key)) for key, _ in METRIC_COLUMNS]
             row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
             out.append("| " + " | ".join(row) + " |")
@@ -189,12 +196,13 @@ def render(runs):
     # Index: one line per run, plus the cross-config warnings.
     index = ["# Benchmark results index", "",
              "Per-run reports (tables + legend) live in each run's own `README.md`.", "",
-             "| run | profile | config | runs | load time | tokens in/out |", "|---|---|---|---|---|---|"]
+             "| run | profile | models | config | runs | load time | tokens in/out |", "|---|---|---|---|---|---|---|"]
     for run in runs:
         dur, tin, tout = run["totals"]
+        models = ", ".join(sorted({r["model"] for r in run["results"]})) or "—"
         index.append(
             f"| [{run['run_id']}]({run['run_id']}/README.md) | {run['meta'].get('profile_name', '?')} "
-            f"| `{run['config_id']}` | {len(run['results'])} | {dur / 60:,.1f} min "
+            f"| {models} | `{run['config_id']}` | {len(run['results'])} | {dur / 60:,.1f} min "
             f"| {int(tin):,} / {int(tout):,} |"
         )
     by_name = {}
