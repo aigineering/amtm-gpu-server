@@ -141,6 +141,44 @@ conversations happen — if you see cache evictions or latency creeping up under
 traffic, that headroom (or lowering `--max-model-len`) is the first thing to revisit,
 before assuming you need to shrink the other model's share.
 
+## KV cache offloading to CPU RAM (not enabled — decision notes)
+
+If GPU KV cache proves too small under real traffic (symptom: prefix-cache
+evictions / rising latency in vLLM's logs and metrics as concurrent conversations
+grow), evicted KV blocks can be parked in CPU RAM and pulled back over PCIe on
+reuse instead of being recomputed. Two candidate approaches, **neither enabled**;
+this section exists so the discussion doesn't restart from zero.
+
+**Native vLLM offloading** (built-in CPU-offloading path for the prefix cache,
+via vLLM's offloading connector / swap mechanism):
+
+- Pros: config-only — no new dependency, same container image, fits this repo's
+  offline-customer and minimal-moving-parts constraints.
+- Cons: RAM-only tier, per-instance (no sharing between the two engines), fewer
+  tuning knobs, capped by host RAM.
+
+**LMCache** (external KV-cache layer plugged into vLLM's connector API):
+
+- Pros: higher ceiling — disk tier below RAM, cache sharing across instances,
+  smarter eviction, pipelined transfers, optional KV compression.
+- Cons: version-coupled to vLLM (pin and re-validate on every image bump), and
+  it must be verified to ship inside the exact `vllm/vllm-openai` image deployed
+  — if it doesn't, we'd have to bake and distribute a custom image, a real cost
+  given the customer host has no internet access.
+
+**Hardware reality check:** the L40S itself is a good fit (single GPU over PCIe
+gen4 is exactly what KV offloading targets — fetching a block is usually faster
+than recomputing its prefill). The constraint is host RAM: the g6e.xlarge test
+box has 32 GiB total (~24 GiB free with both engines loaded), so offloading buys
+maybe 8–12 GiB on top of ~16 GiB of GPU KV. **Confirm the customer host's RAM**
+before treating offloading as part of the production design; if it becomes
+load-bearing, test on a host with comparable RAM (e.g. g6e.2xlarge, 64 GiB).
+
+**Agreed escalation order:** (1) measure — no offloading until eviction shows up
+in real workloads; (2) native vLLM offloading first, it's one `extra_args`
+change; (3) LMCache only for a concrete need it alone solves (disk tier,
+cross-instance sharing), after confirming image support.
+
 ## Re-benchmarking
 
 Same loop as before: edit `group_vars/all.yml`, re-run with `--tags vllm`. The
