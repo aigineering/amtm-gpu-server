@@ -72,14 +72,47 @@ LEGEND = """\
 | in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
 | SLO | PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on `colocated` rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms |
 
-Multi-turn results (conversation replay with growing history — prefix-cache
-and KV-offloading behavior) are plain-text harness reports: see the
-`multiturn-*.txt` files inside each run directory.
+**Multi-turn conversations table** (conversation replay with growing history —
+prefix-cache and KV-offloading behavior): parsed from the harness reports.
+Columns: req/s (completed turns per second), TTFT/TPOT/e2e at p50/p99 (ms),
+input tokens per request mean/max (shows how deep conversations grew), and
+approximate total tokens in/out (count × mean — the harness reports
+distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
 """
 
 # Working SLOs from docs/benchmarking.md (co-located scenario is what counts).
 SLO_TTFT_P95_MS = {1: 1500, 5: 1500, 20: 1500, 50: 2500}
 SLO_ITL_P95_MS = 100
+
+
+
+
+MULTITURN_FILE_RE = re.compile(r"^multiturn-(?P<name>.+)-c(?P<clients>\d+)\.txt$")
+# stats rows: label then count/mean/std/min/25%/50%/75%/90%/99%/max
+MULTITURN_ROW_RE = re.compile(
+    r"^(?P<label>[a-z_]+)\s+" + r"\s+".join(r"(?P<c%d>[\d.,-]+)" % i for i in range(10)) + r"\s*$",
+    re.MULTILINE)
+MULTITURN_COLS = ["count", "mean", "std", "min", "p25", "p50", "p75", "p90", "p99", "max"]
+
+
+def parse_multiturn(path):
+    """Parse the multi-turn harness's stdout report; None if it isn't one."""
+    text = path.read_text(errors="replace")
+    if "Statistics summary" not in text:
+        return None  # failed run or unexpected format — leave as a raw file
+    stats = {"rows": {}}
+    for key in ("runtime_sec", "requests_per_sec"):
+        m = re.search(rf"^{key} = ([\d.]+)", text, re.MULTILINE)
+        if m:
+            stats[key] = float(m.group(1))
+    for m in MULTITURN_ROW_RE.finditer(text):
+        try:
+            stats["rows"][m.group("label")] = {
+                col: float(m.group(f"c{i}").replace(",", "")) for i, col in enumerate(MULTITURN_COLS)
+            }
+        except ValueError:
+            continue
+    return stats if stats["rows"] else None
 
 
 def load_runs(only=None):
@@ -110,7 +143,13 @@ def load_runs(only=None):
             # just the instance alias.
             model_id = (data.get("model_id") or "").rstrip("/").rsplit("/", 1)[-1]
             results.append({**m.groupdict(), "model": model_id or m.group("name"), "data": data})
-        multiturn = sorted(p.name for p in run_dir.glob("multiturn-*.txt"))
+        multiturn = []
+        for p in sorted(run_dir.glob("multiturn-*.txt")):
+            fm = MULTITURN_FILE_RE.match(p.name)
+            multiturn.append({"file": p.name,
+                              "name": fm.group("name") if fm else p.name,
+                              "clients": fm.group("clients") if fm else "?",
+                              "stats": parse_multiturn(p)})
         runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
                      "results": results, "multiturn": multiturn})
     return runs
@@ -235,8 +274,33 @@ def run_section(run):
     else:
         out.append("\n_(no parsed result files)_")
         run["totals"] = (0, 0, 0)
-    if run["multiturn"]:
-        out.append(f"\nmulti-turn reports: {', '.join('`' + m + '`' for m in run['multiturn'])}")
+    parsed = [m for m in run["multiturn"] if m["stats"]]
+    unparsed = [m for m in run["multiturn"] if not m["stats"]]
+    if parsed:
+        out.append("\n### Multi-turn conversations\n")
+        out.append("| instance | clients | req/s | TTFT p50/p99 | TPOT p50/p99 | e2e p50/p99 | input tok mean/max | ≈tok in/out total | runtime |")
+        out.append("|---|---|---|---|---|---|---|---|---|")
+        for m in parsed:
+            s = m["stats"]
+            r = s["rows"]
+
+            def pair(label, a="p50", b="p99"):
+                row = r.get(label)
+                return f"{row[a]:,.0f} / {row[b]:,.0f}" if row else "—"
+
+            itok = r.get("input_num_tokens")
+            otok = r.get("output_num_tokens")
+            tin = f"{int(itok['count'] * itok['mean']):,}" if itok else "—"
+            tout = f"{int(otok['count'] * otok['mean']):,}" if otok else "—"
+            imeanmax = f"{itok['mean']:,.0f} / {itok['max']:,.0f}" if itok else "—"
+            out.append(
+                f"| {m['name']} | {m['clients']} | {s.get('requests_per_sec', 0):.2f} "
+                f"| {pair('ttft_ms')} | {pair('tpot_ms')} | {pair('latency_ms')} "
+                f"| {imeanmax} | {tin} / {tout} | {s.get('runtime_sec', 0):,.0f}s |"
+            )
+    if unparsed:
+        out.append("\nunparsed multi-turn files (failed or unexpected format): "
+                   + ", ".join("`" + m["file"] + "`" for m in unparsed))
     return out
 
 
