@@ -158,7 +158,12 @@
         prompts_per_user: "{{ benchmark_prompts_per_user }}"
         seed: "{{ benchmark_seed }}"
         scenarios: "{{ benchmark_scenarios }}"
+        context_stress: "{{ benchmark_context_stress }}"
+        context_input_fraction: "{{ benchmark_context_input_fraction }}"
+        context_output_len: "{{ benchmark_context_output_len }}"
         multi_turn: "{{ benchmark_multi_turn }}"
+        multi_turn_clients: "{{ benchmark_multi_turn_clients }}"
+        multi_turn_num_conversations: "{{ benchmark_multi_turn_num_conversations }}"
 
 # --- Scenarios ---------------------------------------------------------------
 

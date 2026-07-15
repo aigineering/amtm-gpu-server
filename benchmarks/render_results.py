@@ -140,6 +140,62 @@ def slo_verdict(scenario, tier, data):
     return "PASS" if ok else "FAIL"
 
 
+
+
+def kv_mode(extra_args):
+    """Human-readable KV offload mode from an instance's extra_args."""
+    args = list(extra_args or [])
+    if "--kv-offloading-backend" in args:
+        try:
+            size = args[args.index("--kv-offloading-size") + 1]
+        except (ValueError, IndexError):
+            size = "?"
+        return f"native, {size} GB RAM"
+    return "off"
+
+
+def config_section(meta):
+    """Static parameters of the run, documented once per summary."""
+    out = ["\n### Configuration\n"]
+    instances = meta.get("vllm_instances") or []
+    if instances:
+        out.append("| instance | model | context window | GPU mem fraction | KV offload | other flags |")
+        out.append("|---|---|---|---|---|---|")
+        kv_tokens = {"--kv-offloading-backend", "--kv-offloading-size"}
+        for inst in instances:
+            args = list(inst.get("extra_args") or [])
+            other, skip = [], False
+            for i, a in enumerate(args):
+                if skip:
+                    skip = False
+                    continue
+                if a in kv_tokens:
+                    skip = True
+                    continue
+                other.append(a)
+            model = (inst.get("model_path") or "?").rstrip("/").rsplit("/", 1)[-1]
+            out.append(
+                f"| {inst.get('name', '?')} | {model} | {int(inst.get('max_model_len', 0)):,} "
+                f"| {inst.get('gpu_memory_utilization', '?')} | {kv_mode(args)} "
+                f"| `{' '.join(other) or '—'}` |"
+            )
+    w = meta.get("workload") or {}
+    if w:
+        parts = [f"dataset={w.get('dataset', '?')}",
+                 f"tiers={w.get('concurrency_tiers', '?')}",
+                 f"prompts/user={w.get('prompts_per_user', '?')}",
+                 f"seed={w.get('seed', '?')}",
+                 f"scenarios={w.get('scenarios', '?')}"]
+        if str(w.get("context_stress", "")).lower() in ("true", "1"):
+            frac = float(w.get("context_input_fraction", 0.8))
+            parts.append(f"context-stress inputs≈{frac:.0%} of window, {w.get('context_output_len', '?')} out")
+        if str(w.get("multi_turn", "")).lower() in ("true", "1"):
+            parts.append(f"multi-turn: {w.get('multi_turn_clients', '?')} clients / "
+                         f"{w.get('multi_turn_num_conversations', '?')} conversations")
+        out.append("\nworkload: " + " | ".join(parts))
+    return out
+
+
 def run_section(run):
     """One run's report body (returned as a list of markdown lines)."""
     out = []
@@ -153,9 +209,10 @@ def run_section(run):
         f"image: {meta.get('vllm_image', '?')} | "
         f"first run: {meta.get('timestamp_utc', '?')}"
     )
+    out += config_section(meta)
     model_map = {r["name"]: r["model"] for r in run["results"]}
     if model_map:
-        out.append("\nmodels: " + ", ".join(f"`{k}` = {v}" for k, v in sorted(model_map.items())))
+        out.append("\nserved (observed): " + ", ".join(f"`{k}` = {v}" for k, v in sorted(model_map.items())))
     if run["results"]:
         total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
         total_in = sum(r["data"].get("total_input_tokens") or 0 for r in run["results"])
