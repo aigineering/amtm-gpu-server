@@ -12,6 +12,36 @@ model_fetch_hf_token: ""
 # Re-download even if model_path already contains a config.json.
 model_fetch_force: false
 
+# Benchmark assets, fetched during the same egress window as the models and
+# stored on the models volume (so they survive resets and are available
+# offline afterwards). Everything is downloaded with the curl CLI, never
+# get_url (see the ASN1 note in roles/nvidia_driver). The multi-turn harness
+# files are pinned to a vLLM tag — keep it aligned with the deployed image.
+benchmark_assets_dir: /opt/models/benchmark
+vllm_bench_pin: v0.25.1
+benchmark_assets:
+  - name: sharegpt dataset (single-shot benchmark corpus)
+    url: "https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json"
+    dest: datasets/sharegpt.json
+  - name: multi-turn harness (main script)
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/benchmark_serving_multi_turn.py"
+    dest: multi_turn/benchmark_serving_multi_turn.py
+  - name: multi-turn harness (dataset module)
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/bench_dataset.py"
+    dest: multi_turn/bench_dataset.py
+  - name: multi-turn harness (utils module)
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/bench_utils.py"
+    dest: multi_turn/bench_utils.py
+  - name: multi-turn synthetic-conversation config
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/generate_multi_turn.json"
+    dest: multi_turn/generate_multi_turn.json
+  - name: multi-turn sharegpt converter
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/convert_sharegpt_to_openai.py"
+    dest: multi_turn/convert_sharegpt_to_openai.py
+  - name: gutenberg text used by the synthetic conversation generator
+    url: "https://www.gutenberg.org/ebooks/1184.txt.utf-8"
+    dest: multi_turn/pg1184.txt
+
 # What to fetch: a catalog of {name, repo_id, model_path, revision} entries,
 # deliberately decoupled from vllm_instances — the point is to land the WHOLE
 # model catalog on disk during one egress window, so serving profiles can swap

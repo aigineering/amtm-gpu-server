@@ -51,21 +51,27 @@ Non-technical summary: [docs/executive-overview.md](docs/executive-overview.md).
 │   ├── models.yml             # models EBS volume (survives resets; blank via --wipe-models)
 │   ├── instance.yml           # the RHEL GPU instance (disposable)
 │   └── env.sh                 # up / reset [--wipe-models] / stop / start / status / ssh / down
+├── benchmarks/
+│   ├── results/               # one dir per benchmark run (git-tracked)
+│   └── render_results.py      # comparison tables + SLO pass/fail
 └── ansible/
     ├── ansible.cfg
     ├── requirements.yml       # required collections
     ├── inventories/
     │   ├── aws-test/          # clean AWS L40S box used for dry runs
     │   └── customer/          # customer's existing RHEL server
+    ├── profiles/              # named serving configs — apply/benchmark via -e @profiles/<name>.yml
     ├── playbooks/
     │   ├── site.yml
-    │   └── fetch-models.yml   # standalone, opt-in — see docs/model-fetching.md
+    │   ├── fetch-models.yml   # standalone, opt-in — see docs/model-fetching.md
+    │   └── benchmark.yml      # performance suite — see docs/benchmarking.md
     └── roles/
         ├── common/            # base OS prep
         ├── nvidia_driver/     # detect-then-install NVIDIA driver
         ├── docker/            # Docker CE + nvidia-container-toolkit
         ├── vllm/               # docker-compose.yml templating + deploy
-        └── fetch_models/       # optional: download model repos from HF Hub
+        ├── fetch_models/       # optional: download model repos + benchmark assets
+        └── benchmark/          # solo/co-located/multi-turn benchmark runs
 ```
 
 ## Operator guide 1 — AWS test environment (training)

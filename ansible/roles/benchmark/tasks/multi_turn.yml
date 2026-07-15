@@ -1,0 +1,55 @@
+---
+# Multi-turn conversation benchmark (vLLM's benchmark_serving_multi_turn.py,
+# fetched to the models volume by the fetch playbook). Replays full sessions —
+# accumulated history per turn, client think-time, shared prefixes — the
+# workload single-shot `vllm bench serve` cannot produce. All instances stay
+# serving; each endpoint is exercised in turn. Runs inside the serving image
+# (has aiohttp/numpy/pandas/transformers); the harness prints its statistics
+# table to stdout, captured per instance.
+
+- name: "Multi-turn: ensure all instances are running"
+  ansible.builtin.command:
+    cmd: docker compose start
+    chdir: "{{ vllm_deploy_dir }}"
+  changed_when: true
+
+- name: "Multi-turn: wait for every endpoint"
+  ansible.builtin.uri:
+    url: "http://localhost:{{ item.port }}/health"
+  register: benchmark_mt_health
+  until: benchmark_mt_health.status == 200
+  retries: 90
+  delay: 10
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Multi-turn: run against each endpoint"
+  ansible.builtin.shell: >-
+    docker run --rm --network host
+    -v /opt/models:/models:ro
+    -w /models/benchmark/multi_turn
+    --entrypoint python3 {{ vllm_image }}
+    benchmark_serving_multi_turn.py
+    --url http://localhost:{{ item.port }}
+    --model /models/{{ item.model_path | basename }}
+    --served-model-name {{ item.served_model_name | default(item.name) }}
+    --input-file generate_multi_turn.json
+    --num-clients {{ benchmark_multi_turn_clients }}
+    --max-active-conversations {{ benchmark_multi_turn_max_active_conversations }}
+    > {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt 2>&1
+  changed_when: true
+  async: 7200
+  poll: 15
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Multi-turn: snapshot /metrics per endpoint"
+  ansible.builtin.shell: >-
+    curl -s http://localhost:{{ item.port }}/metrics >
+    {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt
+  changed_when: true
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

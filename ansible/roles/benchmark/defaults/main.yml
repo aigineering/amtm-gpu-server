@@ -1,0 +1,46 @@
+---
+# Performance benchmarking per docs/benchmarking.md. Chat-focused: latency
+# percentiles (TTFT/TPOT/ITL/e2e) outrank aggregate throughput. The load
+# generator runs ON the GPU host against localhost (never through the SSH
+# tunnel), inside the same vLLM image that serves — no extra dependencies.
+
+# Fallback copies of the vllm role's defaults (role defaults are lowest
+# precedence, so inventory group_vars override both identically) — the
+# benchmark playbook runs without the vllm role in scope. Keep aligned with
+# roles/vllm/defaults/main.yml.
+vllm_image: "vllm/vllm-openai:latest"
+vllm_deploy_dir: /opt/vllm
+
+# Where the fetch playbook put the dataset + multi-turn harness (models volume).
+benchmark_assets_dir: /opt/models/benchmark
+
+# Host-side scratch dir for this run's raw results; packaged and fetched back
+# into benchmarks/results/<run_id>/ in this repo at the end of the play.
+benchmark_results_host_dir: /opt/benchmark-results
+
+# Concurrency tiers per docs/benchmarking.md: 1-user floor + the three agreed
+# user tiers where SLO pass/fail is judged.
+benchmark_concurrency_tiers: [1, 5, 20, 50]
+
+# Prompts per simulated user per run — total num_prompts = tier * this. Large
+# enough for stable percentiles at the low tiers, short enough to keep a full
+# suite in the tens of minutes.
+benchmark_prompts_per_user: 8
+
+benchmark_seed: 42
+
+# Which scenarios to run. 'solo' stops the other instance(s) to measure each
+# model's best case; 'colocated' loads all endpoints simultaneously (the run
+# that validates the two-models-on-one-GPU claim).
+benchmark_scenarios: [solo, colocated]
+
+# Multi-turn conversation benchmark (vLLM's benchmark_serving_multi_turn.py,
+# fetched by the fetch playbook). Runs with all instances serving. num_clients
+# = concurrent simulated users.
+benchmark_multi_turn: true
+benchmark_multi_turn_clients: 20
+benchmark_multi_turn_max_active_conversations: 60
+
+# Label recorded in the result record; profiles (ansible/profiles/*.yml)
+# override this together with vllm_instances.
+profile_name: adhoc

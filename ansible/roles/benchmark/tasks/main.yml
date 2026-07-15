@@ -1,0 +1,154 @@
+---
+# Orchestrates the benchmark suite defined in docs/benchmarking.md: solo
+# baselines, the co-located contention run, tier sweep, optional multi-turn.
+# Raw results land in {{ benchmark_results_host_dir }}/<run_id>/ on the host
+# and are fetched back into benchmarks/results/<run_id>/ in this repo.
+
+- name: Assert there are instances to benchmark
+  ansible.builtin.assert:
+    that:
+      - vllm_instances is defined
+      - vllm_instances | length > 0
+    fail_msg: >-
+      No vllm_instances defined. Pass a profile
+      (-e @profiles/<name>.yml) or run against an inventory whose
+      group_vars define the serving instances.
+
+- name: Check the benchmark dataset is on the host
+  ansible.builtin.stat:
+    path: "{{ benchmark_assets_dir }}/datasets/sharegpt.json"
+  register: benchmark_dataset_check
+
+- name: Fail if benchmark assets were never fetched
+  ansible.builtin.fail:
+    msg: >-
+      {{ benchmark_assets_dir }}/datasets/sharegpt.json is missing — run
+      playbooks/fetch-models.yml (during an egress window) first; it fetches
+      the benchmark dataset and multi-turn harness alongside the models.
+  when: not benchmark_dataset_check.stat.exists
+
+- name: Compose the run id
+  ansible.builtin.set_fact:
+    benchmark_run_id: >-
+      {{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ profile_name }}
+    benchmark_repo_git_sha: "{{ lookup('pipe', 'git -C ' ~ playbook_dir ~ ' rev-parse HEAD') }}"
+    benchmark_repo_git_dirty: "{{ (lookup('pipe', 'git -C ' ~ playbook_dir ~ ' status --porcelain') | length) > 0 }}"
+
+- name: Set the run directory fact
+  ansible.builtin.set_fact:
+    benchmark_run_dir: "{{ benchmark_results_host_dir }}/{{ benchmark_run_id | trim }}"
+
+- name: Create the run directory
+  ansible.builtin.file:
+    path: "{{ benchmark_run_dir }}"
+    state: directory
+    mode: "0755"
+
+# --- Result record: snapshot what is ACTUALLY running (docs/benchmarking.md) —
+
+- name: Snapshot the rendered compose file (the applied config)
+  ansible.builtin.slurp:
+    src: "{{ vllm_deploy_dir }}/docker-compose.yml"
+  register: benchmark_compose_snapshot
+
+- name: Read the serving image digest
+  ansible.builtin.command: >-
+    docker image inspect --format
+    '{{ '{{' }}json .RepoDigests{{ '}}' }}' {{ vllm_image }}
+  register: benchmark_image_digest
+  changed_when: false
+
+- name: Read GPU and driver fingerprint
+  ansible.builtin.command: nvidia-smi --query-gpu=name,driver_version --format=csv,noheader
+  register: benchmark_gpu_fingerprint
+  changed_when: false
+
+- name: Read instance type from IMDSv2
+  ansible.builtin.shell: |
+    set -o pipefail
+    TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+    curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/instance-type
+  register: benchmark_instance_type
+  changed_when: false
+  failed_when: false
+
+- name: Write the result record metadata
+  ansible.builtin.copy:
+    dest: "{{ benchmark_run_dir }}/metadata.json"
+    mode: "0644"
+    content: "{{ benchmark_metadata | to_nice_json }}"
+  vars:
+    benchmark_metadata:
+      run_id: "{{ benchmark_run_id | trim }}"
+      profile_name: "{{ profile_name }}"
+      timestamp_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+      repo_git_sha: "{{ benchmark_repo_git_sha }}"
+      repo_git_dirty: "{{ benchmark_repo_git_dirty }}"
+      vllm_image: "{{ vllm_image }}"
+      vllm_image_digests: "{{ benchmark_image_digest.stdout | from_json }}"
+      # The resolved profile as configured for this run…
+      vllm_instances: "{{ vllm_instances }}"
+      # …and the config actually applied on the host (base64 of the rendered
+      # compose file) — the renderer treats differing snapshots as different
+      # configurations even under the same profile name.
+      compose_file_b64: "{{ benchmark_compose_snapshot.content }}"
+      host:
+        instance_type: "{{ benchmark_instance_type.stdout | default('unknown') }}"
+        gpu: "{{ benchmark_gpu_fingerprint.stdout | trim }}"
+      workload:
+        dataset: sharegpt
+        dataset_path: "{{ benchmark_assets_dir }}/datasets/sharegpt.json"
+        concurrency_tiers: "{{ benchmark_concurrency_tiers }}"
+        prompts_per_user: "{{ benchmark_prompts_per_user }}"
+        seed: "{{ benchmark_seed }}"
+        scenarios: "{{ benchmark_scenarios }}"
+        multi_turn: "{{ benchmark_multi_turn }}"
+
+# --- Scenarios ---------------------------------------------------------------
+
+- name: Run solo baselines
+  ansible.builtin.include_tasks: solo.yml
+  when: "'solo' in benchmark_scenarios"
+
+- name: Run co-located scenario
+  ansible.builtin.include_tasks: colocated.yml
+  when: "'colocated' in benchmark_scenarios"
+
+- name: Run multi-turn conversation benchmark
+  ansible.builtin.include_tasks: multi_turn.yml
+  when: benchmark_multi_turn | bool
+
+# --- Bring results home -------------------------------------------------------
+
+- name: Package the run directory
+  ansible.builtin.command:
+    cmd: tar -czf /tmp/{{ benchmark_run_id | trim }}.tar.gz -C {{ benchmark_results_host_dir }} {{ benchmark_run_id | trim }}
+  changed_when: true
+
+- name: Fetch the results archive to the control machine
+  ansible.builtin.fetch:
+    src: "/tmp/{{ benchmark_run_id | trim }}.tar.gz"
+    dest: "{{ playbook_dir }}/../../benchmarks/results/"
+    flat: true
+
+- name: Extract the results locally
+  ansible.builtin.unarchive:
+    src: "{{ playbook_dir }}/../../benchmarks/results/{{ benchmark_run_id | trim }}.tar.gz"
+    dest: "{{ playbook_dir }}/../../benchmarks/results/"
+  delegate_to: localhost
+  become: false
+
+- name: Remove the local archive
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../benchmarks/results/{{ benchmark_run_id | trim }}.tar.gz"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: Point at the results
+  ansible.builtin.debug:
+    msg: >-
+      Results in benchmarks/results/{{ benchmark_run_id | trim }}/ — render a
+      comparison with: python3 benchmarks/render_results.py

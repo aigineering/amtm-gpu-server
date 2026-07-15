@@ -1,0 +1,53 @@
+---
+# One co-located tier: fire a bench container per endpoint in parallel (async,
+# poll 0), then wait for all of them. bench_tier is the concurrency PER MODEL —
+# tier 20 means 20 simulated users on gemma AND 20 on llama at once.
+
+- name: "Co-located c{{ bench_tier }}: launch bench per endpoint (parallel)"
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm --network host
+      -v /opt/models:/models:ro
+      -v {{ benchmark_run_dir }}:/results
+      --entrypoint vllm {{ vllm_image }} bench serve
+      --backend openai-chat
+      --base-url http://localhost:{{ item.port }}
+      --endpoint /v1/chat/completions
+      --model /models/{{ item.model_path | basename }}
+      --served-model-name {{ item.served_model_name | default(item.name) }}
+      --dataset-name sharegpt
+      --dataset-path /models/benchmark/datasets/sharegpt.json
+      --num-prompts {{ bench_tier * benchmark_prompts_per_user }}
+      --max-concurrency {{ bench_tier }}
+      --seed {{ benchmark_seed }}
+      --percentile-metrics ttft,tpot,itl,e2el
+      --metric-percentiles 50,95,99
+      --save-result --result-dir /results
+      --result-filename colocated-{{ item.name }}-c{{ bench_tier }}.json
+  async: 7200
+  poll: 0
+  changed_when: true
+  register: benchmark_colo_jobs
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Co-located c{{ bench_tier }}: wait for all bench runs"
+  ansible.builtin.async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: benchmark_colo_result
+  until: benchmark_colo_result.finished
+  retries: 480
+  delay: 15
+  loop: "{{ benchmark_colo_jobs.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: "Co-located c{{ bench_tier }}: snapshot /metrics per endpoint"
+  ansible.builtin.shell: >-
+    curl -s http://localhost:{{ item.port }}/metrics >
+    {{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.metrics.txt
+  changed_when: true
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

@@ -1,0 +1,36 @@
+---
+# Solo baseline for one instance ({{ bench_instance.name }}): stop everything
+# else, wait for this one to be healthy, sweep the tiers.
+
+- name: "Solo {{ bench_instance.name }}: stop the other instances"
+  ansible.builtin.command:
+    cmd: docker compose stop {{ other_services | join(' ') }}
+    chdir: "{{ vllm_deploy_dir }}"
+  vars:
+    other_services: >-
+      {{ vllm_instances | rejectattr('name', 'equalto', bench_instance.name)
+         | map(attribute='name') | map('regex_replace', '^', 'vllm-') | list }}
+  when: vllm_instances | length > 1
+  changed_when: true
+
+- name: "Solo {{ bench_instance.name }}: ensure the instance is running"
+  ansible.builtin.command:
+    cmd: docker compose start vllm-{{ bench_instance.name }}
+    chdir: "{{ vllm_deploy_dir }}"
+  changed_when: true
+
+- name: "Solo {{ bench_instance.name }}: wait for health"
+  ansible.builtin.uri:
+    url: "http://localhost:{{ bench_instance.port }}/health"
+  register: benchmark_solo_health
+  until: benchmark_solo_health.status == 200
+  retries: 90
+  delay: 10
+
+- name: "Solo {{ bench_instance.name }}: sweep concurrency tiers"
+  ansible.builtin.include_tasks: bench_single.yml
+  loop: "{{ benchmark_concurrency_tiers }}"
+  loop_control:
+    loop_var: bench_tier
+  vars:
+    bench_scenario: solo

@@ -1,0 +1,37 @@
+---
+# One `vllm bench serve` run against one endpoint at one concurrency tier.
+# Runs inside the serving image (--network host, models volume read-only), so
+# the harness is versioned with the server and needs no host dependencies.
+# Expects: bench_instance, bench_tier, bench_scenario.
+
+- name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}"
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm --network host
+      -v /opt/models:/models:ro
+      -v {{ benchmark_run_dir }}:/results
+      --entrypoint vllm {{ vllm_image }} bench serve
+      --backend openai-chat
+      --base-url http://localhost:{{ bench_instance.port }}
+      --endpoint /v1/chat/completions
+      --model /models/{{ bench_instance.model_path | basename }}
+      --served-model-name {{ bench_instance.served_model_name | default(bench_instance.name) }}
+      --dataset-name sharegpt
+      --dataset-path /models/benchmark/datasets/sharegpt.json
+      --num-prompts {{ bench_tier * benchmark_prompts_per_user }}
+      --max-concurrency {{ bench_tier }}
+      --seed {{ benchmark_seed }}
+      --percentile-metrics ttft,tpot,itl,e2el
+      --metric-percentiles 50,95,99
+      --save-result --result-dir /results
+      --result-filename {{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json
+  changed_when: true
+  # Long runs must survive control-connection hiccups.
+  async: 7200
+  poll: 15
+
+- name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}: snapshot /metrics"
+  ansible.builtin.shell: >-
+    curl -s http://localhost:{{ bench_instance.port }}/metrics >
+    {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.metrics.txt
+  changed_when: true

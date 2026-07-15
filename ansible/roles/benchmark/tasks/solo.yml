@@ -1,0 +1,28 @@
+---
+# Scenario 1: each model alone on the GPU — the other containers are stopped so
+# nothing competes for compute or KV memory. Establishes the per-model best
+# case that the co-located numbers are compared against.
+
+- name: Benchmark each instance solo
+  ansible.builtin.include_tasks: solo_instance.yml
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    loop_var: bench_instance
+    label: "{{ bench_instance.name }}"
+
+- name: Restart all instances after solo runs
+  ansible.builtin.command:
+    cmd: docker compose start
+    chdir: "{{ vllm_deploy_dir }}"
+  changed_when: true
+
+- name: Wait for every endpoint to be healthy again
+  ansible.builtin.uri:
+    url: "http://localhost:{{ item.port }}/health"
+  register: benchmark_health
+  until: benchmark_health.status == 200
+  retries: 90
+  delay: 10
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

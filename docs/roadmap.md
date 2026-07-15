@@ -9,7 +9,7 @@ driver/Docker/firewalld/SELinux, and two AWQ models (Gemma 4 26B-A4B, Llama 3.2
 ([model-tuning-and-placement.md](model-tuning-and-placement.md)). Endpoints
 smoke-tested (text + image input) through the SSH tunnel.
 
-## v0.2 — evaluation & profiles (next)
+## v0.2 — evaluation & profiles (implemented, pending first real run)
 
 Goal: stop hand-testing and start measuring. The client needs to swap models
 and quantizations with confidence, and to *prove* the two-models-on-one-GPU

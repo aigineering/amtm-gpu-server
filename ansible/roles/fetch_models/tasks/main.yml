@@ -97,6 +97,26 @@
     label: "{{ item.item.name }}"
   when: not item.stat.exists or model_fetch_force
 
+# Benchmark assets (dataset + pinned multi-turn harness) ride the same egress
+# window and live on the models volume. curl CLI, not get_url — the target's
+# Python ssl stack is unreliable (see roles/nvidia_driver for the ASN1 story).
+- name: Ensure benchmark asset directories exist
+  ansible.builtin.file:
+    path: "{{ benchmark_assets_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - datasets
+    - multi_turn
+
+- name: Fetch benchmark assets
+  ansible.builtin.command:
+    cmd: curl -fsSL --retry 3 -o {{ benchmark_assets_dir }}/{{ item.dest }} {{ item.url }}
+    creates: "{{ benchmark_assets_dir }}/{{ item.dest }}"
+  loop: "{{ benchmark_assets }}"
+  loop_control:
+    label: "{{ item.dest }}"
+
 - name: Report disk usage of each model directory
   ansible.builtin.command: "du -sh {{ item.model_path }}"
   register: model_disk_usage

@@ -1,0 +1,28 @@
+---
+# Scenario 2: the product claim. All instances serving, load driven against
+# every endpoint SIMULTANEOUSLY (one bench container per endpoint, launched
+# async in parallel), swept across the same tiers as the solo runs. Each
+# model's numbers minus its solo baseline = the cost of co-location.
+
+- name: "Co-located: ensure all instances are running"
+  ansible.builtin.command:
+    cmd: docker compose start
+    chdir: "{{ vllm_deploy_dir }}"
+  changed_when: true
+
+- name: "Co-located: wait for every endpoint"
+  ansible.builtin.uri:
+    url: "http://localhost:{{ item.port }}/health"
+  register: benchmark_colo_health
+  until: benchmark_colo_health.status == 200
+  retries: 90
+  delay: 10
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Co-located: sweep concurrency tiers"
+  ansible.builtin.include_tasks: colocated_tier.yml
+  loop: "{{ benchmark_concurrency_tiers }}"
+  loop_control:
+    loop_var: bench_tier

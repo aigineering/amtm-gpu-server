@@ -1,0 +1,20 @@
+---
+# Benchmark the currently deployed serving configuration. See
+# docs/benchmarking.md for the full definition (scenarios, tiers, SLOs).
+#
+# Typical flow:
+#   1. Apply a profile:   ansible-playbook -i inventories/aws-test/hosts.yml \
+#        playbooks/site.yml --tags vllm -e @profiles/baseline.yml
+#   2. Benchmark it:      ansible-playbook -i inventories/aws-test/hosts.yml \
+#        playbooks/benchmark.yml -e @profiles/baseline.yml
+#   3. Compare runs:      python3 benchmarks/render_results.py
+#
+# Prereq: playbooks/fetch-models.yml has run at least once (it also fetches the
+# benchmark dataset and multi-turn harness onto the models volume).
+#
+# NOTE: this drives real load and stops/starts serving containers (solo
+# scenario) — never run it against a host serving real users.
+- name: Benchmark vLLM serving profile
+  hosts: gpu_servers
+  roles:
+    - benchmark

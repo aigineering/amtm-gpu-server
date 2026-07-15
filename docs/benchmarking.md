@@ -162,6 +162,26 @@ reproduce the run without archaeology. Each run's JSON carries:
 The comparison renderer treats any two runs whose profile snapshots differ as
 different configurations, even if the profile *name* is the same.
 
+## Implementation (v0.2)
+
+| Piece | Where |
+|---|---|
+| Profiles | `ansible/profiles/<name>.yml` — `profile_name` + a full `vllm_instances` override; extra-vars beat group_vars. `baseline.yml` is the v0.1-validated config. |
+| Apply a profile | `ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --tags vllm -e @profiles/baseline.yml` |
+| Benchmark it | `ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml -e @profiles/baseline.yml` (`roles/benchmark`) |
+| Dataset + multi-turn harness | fetched by `playbooks/fetch-models.yml` (same egress window as models) onto the models volume under `/opt/models/benchmark/`, multi-turn files pinned to a vLLM tag (`vllm_bench_pin`) |
+| Raw results | `benchmarks/results/<run_id>/` — per-run `metadata.json` (the result record), one JSON per scenario/model/tier, `/metrics` snapshot after every run, multi-turn stdout as `.txt` |
+| Comparison | `python3 benchmarks/render_results.py` — markdown tables + SLO PASS/FAIL on co-located rows; refuses to blur runs whose applied configs differ (grouping key = sha256 of the compose snapshot) |
+
+Sequencing notes: solo runs stop the other container(s) and restart them
+after; co-located tiers launch one bench container per endpoint in parallel
+(tier = users **per model**); everything runs `--network host` against
+localhost inside the serving image. First-run caveat: the exact
+`vllm bench serve` / multi-turn CLI flags are per the pinned version's docs —
+if the image's harness differs, the flags live in one place each
+(`roles/benchmark/tasks/bench_single.yml`, `colocated_tier.yml`,
+`multi_turn.yml`).
+
 ## Decisions log
 
 | Date | Decision | Rationale |
@@ -175,7 +195,7 @@ different configurations, even if the profile *name* is the same.
 | 2026-07-15 | Every result embeds its resolved profile + versions (see "Result record") | Client will tweak params; results must be reproducible and never silently compared across differing configs |
 | 2026-07-15 | SLOs adopted from industry norms (perception-anchored), pending client data | Customer has no usage metrics; TTFT anchors to UI responsiveness, ITL to reading speed |
 | 2026-07-15 | Implementation stays playbook-based (Ansible roles/playbooks, no side tooling) | Same operating model as the rest of the repo; agentless, works against the offline customer box |
-| 2026-07-15 | Second harness: vLLM's `benchmark_serving_multi_turn.py`, vendored at a pinned version | Only tool that replays real multi-turn sessions (history + think-time + shared prefixes); not in the container image, so vendor it (Apache-2.0) for the offline box |
+| 2026-07-15 | Second harness: vLLM's `benchmark_serving_multi_turn.py`, **fetched pinned to the models volume** (revised from "vendor into repo") | Only tool that replays real multi-turn sessions; fetching it during the egress window (pinned to `vllm_bench_pin`) gives the same offline guarantee without carrying third-party code in the repo |
 | 2026-07-15 | Open-loop (Poisson) load generation; p99 recorded alongside p95 | Closed-loop generators self-throttle and flatter results; SLO practice judges tails |
 
 ## Considered and rejected (for now)
@@ -198,5 +218,7 @@ different configurations, even if the profile *name* is the same.
 - Revisit SLO targets when the client has real usage data (working targets
   adopted from industry norms meanwhile).
 - Client-domain/language dataset — planned, needs the client's traffic profile.
-- How the ShareGPT file gets onto the box (fetch playbook vs git-tracked
-  subset) — decide at implementation.
+- ~~How the ShareGPT file gets onto the box~~ — decided: the fetch playbook
+  downloads it (and the multi-turn harness) alongside the models.
+- Validate the harness CLI flags against the deployed image on the first real
+  run (see Implementation, first-run caveat).
