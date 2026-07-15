@@ -281,6 +281,18 @@ directly comparable.
 
 ## Considered and rejected (for now)
 
+- **Attention backend as a benchmark/profile dimension** (FlashAttention-2 /
+  FlashInfer vs the default) — rejected 2026-07-15. Gemma-4's heterogeneous
+  head dims (256 sliding / 512 full-attention) rule out every alternative:
+  FlashInfer supports head sizes ≤256 and fails at engine init
+  (vllm-project/vllm#40677), FA2 likewise — Triton is forced *because* it's
+  the only backend that handles the mix. Llama already defaults to FA2, and
+  as the 3B side-model its FA2-vs-FlashInfer delta can't move the headline
+  numbers. Revisit if vLLM ships FA4 or FlashInfer adds head-512 support.
+  (Hardware note: gemma's Triton fallback needs ~96KB shared memory/SM —
+  fine on the L40S at 100KB, breaks on Turing-class GPUs; relevant if the
+  customer's hardware ever changes.)
+
 - **guidellm** — capacity-planning sweeps (max sustainable RPS). Extra
   dependency; add later only if the client asks for capacity numbers. The
   playbook design leaves room for a second harness.
