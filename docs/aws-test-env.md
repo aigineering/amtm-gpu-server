@@ -44,8 +44,18 @@ infra/env.sh tunnel               # forward vLLM ports 8001/8002 to localhost (C
 infra/env.sh down                 # full teardown incl. models volume (confirms first)
 ```
 
-Defaults are `us-east-1` / `us-east-1a` / `g6e.2xlarge`, overridable via
-`AWS_REGION`, `AZ`, and `INSTANCE_TYPE` env vars.
+Override via `REGION` (preferred — it beats any `AWS_REGION` exported in your
+shell, which once silently redirected a run to the wrong region), `AZ`, and
+`INSTANCE_TYPE` env vars; defaults are in the script header. `REGION` and `AZ`
+must agree (AZ = region + letter) — enforced before any command runs, and every
+command prints `region=… az=…` first.
+
+Capacity hunting across regions works: CloudFormation stacks are region-scoped,
+so each region gets its own persistent/models/instance stacks and its own
+Elastic IP (update `hosts.yml` when switching regions) and needs one
+fetch-models run. A stack stuck in `ROLLBACK_COMPLETE` from a failed create is
+deleted automatically on the next deploy. Note `down` cleans only the region
+it's pointed at.
 
 Every command first verifies (via `sts get-caller-identity`) that the current
 credentials belong to account `088070740738` and refuses to run otherwise —

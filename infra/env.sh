@@ -11,25 +11,33 @@
 #   infra/env.sh tunnel                forward the vLLM ports (8001, 8002) to localhost
 #   infra/env.sh down                  tear EVERYTHING down, including the models volume
 #
-# Overridables: AWS_REGION (us-east-1), AZ (us-east-1c), INSTANCE_TYPE (g6e.2xlarge),
-# AWS_ACCOUNT (088070740738 — every command refuses to run against any other account),
-# TUNNEL_PORTS ("8001 8002")
+# Overridables: REGION (preferred; falls back to AWS_REGION), AZ,
+# INSTANCE_TYPE (g6e.2xlarge), AWS_ACCOUNT (088070740738 — every command
+# refuses any other account), TUNNEL_PORTS ("8001 8002").
+# REGION and AZ must match (AZ = region + letter) — enforced before anything runs.
 #
 # L40S capacity is scarce and per-AZ, so the models volume is one stack PER AZ:
-# hop zones with e.g. `AZ=us-east-1b infra/env.sh reset` — the first visit to a
+# hop zones with e.g. `AZ=eu-south-2b infra/env.sh reset` — the first visit to a
 # new AZ creates a blank volume there (re-run fetch-models once), and every AZ
 # you've visited keeps its warm model cache (~$24/mo per 300GB volume) until 'down'.
+# Stacks are region-scoped: hunting capacity across regions gives each region
+# its own persistent/models/instance stacks and its own EIP (update hosts.yml
+# when you switch) and needs its own fetch-models run. 'down' only cleans the
+# region it runs in.
 set -euo pipefail
 
-REGION="${AWS_REGION:-us-east-1}"
-AZ="${AZ:-us-east-1a}"
+# REGION beats AWS_REGION so an exported AWS_REGION from earlier shell work
+# can't silently redirect a run (this bit us: stacks landed in the wrong
+# region with an AZ that doesn't exist there).
+REGION="${REGION:-${AWS_REGION:-eu-south-2}}"
+AZ="${AZ:-eu-south-2c}"
 INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.2xlarge}"
 EXPECTED_ACCOUNT="${AWS_ACCOUNT:-088070740738}"
 
 PREFIX="gpu-vllm-test"
 PERSISTENT_STACK="${PREFIX}-persistent"
 # One models stack PER AZ: L40S capacity comes and goes per zone, so hopping
-# AZs (AZ=us-east-1b infra/env.sh reset) keeps a warm model cache in each zone
+# AZs (AZ=eu-south-2b infra/env.sh reset) keeps a warm model cache in each zone
 # instead of forcing a re-fetch. 'down' sweeps the models stacks of ALL AZs.
 MODELS_STACK="${PREFIX}-models-${AZ}"
 INSTANCE_STACK="${PREFIX}-instance"
@@ -40,6 +48,35 @@ PRIVKEY_FILE="${REPO_ROOT}/.ssh/aws_key"
 INFRA_DIR="${REPO_ROOT}/infra"
 
 aws() { command aws --region "$REGION" "$@"; }
+
+# An AZ is its region plus one letter — anything else means REGION and AZ
+# point at different places and CloudFormation would fail (or worse, succeed
+# somewhere unintended).
+check_region_az() {
+  case "$AZ" in
+    "$REGION"?) ;;
+    *)
+      echo "AZ '$AZ' is not in region '$REGION' — set both consistently," >&2
+      echo "e.g.: REGION=eu-central-1 AZ=eu-central-1a $0 <command>" >&2
+      exit 1
+      ;;
+  esac
+  echo ">> region=$REGION az=$AZ"
+}
+
+# A stack whose CREATE failed (ROLLBACK_COMPLETE etc.) holds no resources but
+# blocks any update — delete it so the deploy can recreate it cleanly.
+ensure_stack_deployable() { # stack-name
+  local status
+  status=$(aws cloudformation describe-stacks --stack-name "$1" \
+    --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)
+  case "$status" in
+    ROLLBACK_COMPLETE|ROLLBACK_FAILED|CREATE_FAILED)
+      echo ">> $1 is in $status (failed create) — deleting before redeploy"
+      delete_stack "$1"
+      ;;
+  esac
+}
 
 # Guard against running (and paying, or deleting) in the wrong AWS account.
 check_account() {
@@ -80,6 +117,7 @@ instance_id() { stack_output "$INSTANCE_STACK" InstanceId; }
 public_ip()   { stack_output "$PERSISTENT_STACK" EipAddress; }
 
 deploy_persistent() {
+  ensure_stack_deployable "$PERSISTENT_STACK"
   [ -f "$PUBKEY_FILE" ] || { echo "missing $PUBKEY_FILE" >&2; exit 1; }
   local vpc; vpc=$(default_vpc)
   [ "$vpc" != "None" ] || { echo "no default VPC in $REGION" >&2; exit 1; }
@@ -94,7 +132,8 @@ deploy_persistent() {
 }
 
 deploy_models() {
-  echo ">> deploying $MODELS_STACK (az=$AZ)"
+  ensure_stack_deployable "$MODELS_STACK"
+  echo ">> deploying $MODELS_STACK (region=$REGION az=$AZ)"
   aws cloudformation deploy \
     --stack-name "$MODELS_STACK" \
     --template-file "$INFRA_DIR/models.yml" \
@@ -109,6 +148,7 @@ all_models_stacks() {
 }
 
 deploy_instance() {
+  ensure_stack_deployable "$INSTANCE_STACK"
   local vpc az subnet ami
   vpc=$(default_vpc)
   az="$AZ"
@@ -157,7 +197,7 @@ cmd_reset() {
     delete_stack "$MODELS_STACK"
   fi
   # Idempotent — also creates this AZ's models stack on a first visit to a new
-  # AZ (AZ=us-east-1b infra/env.sh reset), where the fresh volume starts blank.
+  # AZ (AZ=eu-south-2b infra/env.sh reset), where the fresh volume starts blank.
   deploy_models
   deploy_instance
   if $wipe; then
@@ -217,13 +257,13 @@ cmd_tunnel() {
 }
 
 case "${1:-}" in
-  up)     check_account; cmd_up ;;
-  reset)  check_account; cmd_reset "${2:-}" ;;
-  down)   check_account; cmd_down ;;
-  stop)   check_account; cmd_stop ;;
-  start)  check_account; cmd_start ;;
-  status) check_account; cmd_status ;;
-  ssh)    check_account; cmd_ssh ;;
-  tunnel) check_account; cmd_tunnel ;;
+  up)     check_region_az; check_account; cmd_up ;;
+  reset)  check_region_az; check_account; cmd_reset "${2:-}" ;;
+  down)   check_region_az; check_account; cmd_down ;;
+  stop)   check_region_az; check_account; cmd_stop ;;
+  start)  check_region_az; check_account; cmd_start ;;
+  status) check_region_az; check_account; cmd_status ;;
+  ssh)    check_region_az; check_account; cmd_ssh ;;
+  tunnel) check_region_az; check_account; cmd_tunnel ;;
   *) grep '^#   ' "$0" | sed 's/^#   //'; exit 1 ;;
 esac
