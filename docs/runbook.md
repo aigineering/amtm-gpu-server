@@ -104,7 +104,22 @@ Once the stack is up on either environment, most experiments only need the `vllm
 ansible-playbook -i inventories/<env>/hosts.yml playbooks/site.yml --tags vllm
 ```
 
-## 7. Rollback / teardown
+## 7. Benchmarking a configuration
+
+Once the stack serves, measure it before and after any tuning change — see
+[benchmarking.md](benchmarking.md) ("Running the benchmark" for the exact
+commands, "Interpreting results" for reading the output):
+
+```bash
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  -e @profiles/baseline.yml
+python3 ../benchmarks/render_results.py
+```
+
+Test-env only — the suite drives real load and stops/starts the serving
+containers.
+
+## 8. Rollback / teardown
 
 ```bash
 ansible gpu_servers -i inventories/<env>/hosts.yml -m shell \

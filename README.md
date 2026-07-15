@@ -168,13 +168,26 @@ Then run the [verification checklist](#verification-checklist).
 4. **Diagnose**: kill one container, find the cause via `docker logs` (see
    [diagnostics](#diagnostics)).
 
-### 1.6 Teardown
+### 1.6 Benchmark a configuration
 
 ```bash
-ansible all -i inventories/aws-test/hosts.yml -m shell -a "cd /opt/vllm && docker compose down" -b
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  -e @profiles/baseline.yml
+python3 ../benchmarks/render_results.py
 ```
 
-Then terminate the EC2 instance — nothing else to clean up.
+Solo + co-located scenarios across 1/5/20/50 concurrent users, plus a
+multi-turn conversation pass (~1h total); results are git-tracked under
+`benchmarks/results/`. Full instructions — including how to interpret the
+tables, the SLO verdicts, and the solo-vs-co-located delta — in
+[docs/benchmarking.md](docs/benchmarking.md). Test env only: it drives real
+load and stops/starts the serving containers.
+
+### 1.7 Teardown
+
+```bash
+infra/env.sh down     # from the repo root — removes instance, key/SG/IP, and ALL models volumes
+```
 
 ## Operator guide 2 — Installation day (customer server)
 

@@ -182,6 +182,78 @@ if the image's harness differs, the flags live in one place each
 (`roles/benchmark/tasks/bench_single.yml`, `colocated_tier.yml`,
 `multi_turn.yml`).
 
+## Running the benchmark
+
+Prerequisites, once per box (or per fresh models volume):
+
+```bash
+cd ansible
+# 1. Serving stack deployed and healthy (site.yml has run)
+# 2. Benchmark assets on the volume — fetch-models also downloads the
+#    ShareGPT dataset and the multi-turn harness (skips models already present):
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/fetch-models.yml \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml
+```
+
+Then, per configuration you want to measure:
+
+```bash
+# 3. Apply the profile you want to measure (skip if it's already what's running)
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml \
+  --tags vllm -e @profiles/baseline.yml
+
+# 4. Run the suite (expect ~1h for the full default matrix)
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  -e @profiles/baseline.yml
+
+# 5. Render the comparison (from the repo root, on your machine)
+python3 benchmarks/render_results.py            # all runs
+python3 benchmarks/render_results.py <run_id>   # just one
+```
+
+Never run step 4 against a host serving real users — it drives heavy load and
+stops/starts containers. Useful narrowing knobs (pass as `-e`):
+`benchmark_scenarios='["colocated"]'` to skip solo runs,
+`benchmark_concurrency_tiers='[5]'` for a quick single-tier check,
+`benchmark_multi_turn=false` to skip the multi-turn pass. Each run leaves a
+directory under `benchmarks/results/` — commit it; the history is the point.
+
+## Interpreting results
+
+Each rendered table row is one (scenario, model, user-tier) combination:
+
+- **The SLO column is the verdict.** It's judged only on `colocated` rows
+  (that's the deployment reality) against the working targets above. A profile
+  is acceptable at a tier when both its models PASS there.
+- **Solo vs co-located is the cost of sharing.** The same model/tier appearing
+  in both scenarios differs only by contention: TTFT p95 growing sharply on
+  co-located rows means the models are fighting for prefill compute; ITL
+  degradation means decode interference. Small deltas (≲20%) are the expected
+  price of one GPU; large ones justify revisiting the GPU split before
+  anything else.
+- **Watch the trend across tiers, not just the pass/fail.** TTFT that's fine
+  at 5 and 20 users but cliffs at 50 is queueing — the box's honest capacity
+  is between those tiers. ITL failing at every tier is a configuration
+  problem (split, `max_model_len`), not a capacity problem.
+- **`*.metrics.txt` explains *why*.** Each run's vLLM `/metrics` snapshot
+  shows KV-cache usage, prefix-cache hit rate, and preemption counts —
+  rising preemptions/evictions alongside degrading latency is the signal that
+  feeds the KV-offloading decision
+  ([model-tuning-and-placement.md](model-tuning-and-placement.md)).
+- **`multiturn-*.txt`** holds the multi-turn statistics table (ttft_ms /
+  tpot_ms / latency_ms percentile rows printed by the harness). These are the
+  realistic-chat numbers; expect better prefix-cache behavior than the
+  single-shot runs show.
+- **Compare configurations only within the same config id.** The renderer
+  groups by the hash of the applied compose file and warns when one profile
+  name spans different configs — those runs measured different things,
+  whatever their label says.
+
+The comparison loop for the client's model/quant swaps: benchmark the
+incumbent profile, benchmark the challenger profile, and put their co-located
+tables side by side — same tiers, same dataset, same seed make the numbers
+directly comparable.
+
 ## Decisions log
 
 | Date | Decision | Rationale |
