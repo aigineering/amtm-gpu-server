@@ -38,6 +38,9 @@ benchmark_assets:
   - name: multi-turn sharegpt converter
     url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/convert_sharegpt_to_openai.py"
     dest: multi_turn/convert_sharegpt_to_openai.py
+  - name: multi-turn harness python requirements
+    url: "https://raw.githubusercontent.com/vllm-project/vllm/{{ vllm_bench_pin }}/benchmarks/multi_turn/requirements.txt"
+    dest: multi_turn/requirements.txt
   - name: gutenberg text used by the synthetic conversation generator
     url: "https://www.gutenberg.org/ebooks/1184.txt.utf-8"
     dest: multi_turn/pg1184.txt

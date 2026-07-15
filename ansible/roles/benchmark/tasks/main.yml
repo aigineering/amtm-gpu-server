@@ -44,6 +44,28 @@
     state: directory
     mode: "0755"
 
+# The multi-turn harness needs pandas/xlsxwriter, which the vLLM image doesn't
+# ship. Installed once per models volume with the CONTAINER's pip (correct
+# Python ABI), into a dir the bench containers pick up via PYTHONPATH —
+# survives resets and is offline afterwards. Needs PyPI access on first run
+# (test box: fine; customer box: only during an egress window).
+- name: Check multi-turn harness Python deps are on the models volume
+  ansible.builtin.stat:
+    path: "{{ benchmark_assets_dir }}/pylibs/pandas"
+  register: benchmark_pylibs_check
+  when: benchmark_multi_turn | bool
+
+- name: Install multi-turn harness Python deps (one-time per models volume)
+  ansible.builtin.command: >-
+    docker run --rm -v /opt/models:/models
+    --entrypoint pip {{ vllm_image }}
+    install --no-cache-dir --target /models/benchmark/pylibs
+    -r /models/benchmark/multi_turn/requirements.txt
+  changed_when: true
+  when:
+    - benchmark_multi_turn | bool
+    - not benchmark_pylibs_check.stat.exists
+
 # --- Result record: snapshot what is ACTUALLY running (docs/benchmarking.md) —
 
 - name: Snapshot the rendered compose file (the applied config)

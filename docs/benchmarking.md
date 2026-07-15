@@ -263,6 +263,42 @@ incumbent profile, benchmark the challenger profile, and put their co-located
 tables side by side — same tiers, same dataset, same seed make the numbers
 directly comparable.
 
+## Model evaluation campaign (planned, 2026-07-15)
+
+Goal: a clear per-model performance picture across the fetched catalog, and a
+validated co-location choice. Eight servable models (the nine-repo catalog
+minus bge-m3, an embedding model outside this campaign).
+
+### Three workload instruments, three questions
+
+| Instrument | Question it answers | Caveat |
+|---|---|---|
+| ShareGPT (`vllm bench serve`) | Realistic short-chat latency/throughput; externally comparable headline numbers | Sampler uses only each conversation's FIRST turn (~tens-to-hundreds of input tokens) — never exercises large contexts |
+| Multi-turn (synthetic, controllable turns/prefix) | Cache-economy under growing histories: prefix-cache hit rates, deep-conversation latency, and **the KV-offloading evaluation** — offloading's value is reuse-after-eviction (idle conversation evicted to RAM, pulled back on the next turn), which only this workload produces | Input depth is what we configure it to be (~2–7k tokens typical) |
+| Random long-input (`vllm bench serve --dataset-name random`) | **Capacity mapping — a first-class deliverable**: hard memory limits per model × context × concurrency, e.g. "does 32k context + two models fit on this GPU, at how many users" | Zero prefix reuse — deliberately worst-case; not a realistic-traffic number |
+
+### Funnel stages
+
+1. **Screening** (8 solo profiles, ~2–3h): each model alone at ~0.9 GPU
+   utilization, 8k context, tiers 1+20, ShareGPT. Ranks the catalog; exposes
+   quantizations that are non-viable out of the gate (31B FP8 ≈ 33GB weights
+   leaves ~7GB KV at 0.9).
+2. **Deep-dive** (champions + the 3B): full tiers × contexts **8k/16k/32k**.
+   Random long-input runs map each config's capacity limits (offload off).
+   KV-offload on/off measured on the multi-turn workload for KV-constrained
+   configs, plus ONE idle-overhead control (26B AWQ @ 8k, offload on) to price
+   always-on offloading where it isn't needed.
+3. **Co-location** (the product decision): chosen-31B + 3B and 26B-A4B + 3B as
+   two-instance profiles with tuned splits — full suite, multi-turn, SLO
+   verdicts, and pair capacity runs (including the 32k question above). AWQ
+   31B pairing starts near 0.72/0.18; an FP8 31B likely cannot co-locate at
+   all — worth one run to prove either way.
+
+Profile naming: `solo-<model>[-<ctx>][-kvoff]`, `pair-<big>-<small>`.
+Implementation gaps to close before stage 2: the random/context-stress run
+type in the benchmark role, and the KV-offload flag in profiles (exact vLLM
+connector syntax verified against the image at implementation).
+
 ## Decisions log
 
 | Date | Decision | Rationale |
@@ -278,6 +314,10 @@ directly comparable.
 | 2026-07-15 | Implementation stays playbook-based (Ansible roles/playbooks, no side tooling) | Same operating model as the rest of the repo; agentless, works against the offline customer box |
 | 2026-07-15 | Second harness: vLLM's `benchmark_serving_multi_turn.py`, **fetched pinned to the models volume** (revised from "vendor into repo") | Only tool that replays real multi-turn sessions; fetching it during the egress window (pinned to `vllm_bench_pin`) gives the same offline guarantee without carrying third-party code in the repo |
 | 2026-07-15 | Open-loop (Poisson) load generation; p99 recorded alongside p95 | Closed-loop generators self-throttle and flatter results; SLO practice judges tails |
+| 2026-07-15 | Evaluation campaign: funnel (screen → deep-dive → co-locate), contexts 8k/16k/32k | Full 8-model cartesian ≈ 30h+ GPU mostly measuring dead configs; each stage's results pick the next stage's inputs |
+| 2026-07-15 | Capacity mapping via random long-input is a first-class deliverable (Simon) | The client must know hard memory limits — "32k + two models: fits or not, at how many users" — answered directly by worst-case no-reuse runs |
+| 2026-07-15 | KV offloading evaluated separately, on the multi-turn workload | Offloading's value is reuse-after-eviction, which only multi-turn traffic produces; random no-reuse runs can't show it. Constrained configs + one idle-overhead control |
+| 2026-07-15 | Multi-turn harness deps (pandas/xlsxwriter) installed to pylibs/ on the models volume via the container's pip | vLLM image doesn't ship them; container pip = right ABI; volume placement survives resets and is offline afterwards |
 
 ## Considered and rejected (for now)
 

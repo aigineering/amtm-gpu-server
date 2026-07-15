@@ -29,6 +29,7 @@
     docker run --rm --network host
     -v /opt/models:/models:ro
     -w /models/benchmark/multi_turn
+    -e PYTHONPATH=/models/benchmark/pylibs
     --entrypoint python3 {{ vllm_image }}
     benchmark_serving_multi_turn.py
     --url http://localhost:{{ item.port }}
