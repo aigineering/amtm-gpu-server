@@ -6,3 +6,4 @@ ansible/inventories/*/group_vars/vault.yml
 __pycache__/
 .DS_Store
 .ssh
+tmp/
