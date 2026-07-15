@@ -316,8 +316,14 @@ def config_section(meta):
             frac = float(w.get("context_input_fraction", 0.8))
             parts.append(f"context-stress inputs≈{frac:.0%} of window, {w.get('context_output_len', '?')} out")
         if str(w.get("multi_turn", "")).lower() in ("true", "1"):
-            parts.append(f"multi-turn: {w.get('multi_turn_clients', '?')} clients / "
-                         f"{w.get('multi_turn_num_conversations', '?')} conversations")
+            if "multi_turn_tiers" in w:
+                parts.append(
+                    f"multi-turn: tiers {w['multi_turn_tiers']} × "
+                    f"{w.get('multi_turn_conversations_per_client', '?')} conv/client, "
+                    f"{w.get('multi_turn_turns', '?')} turns")
+            else:  # records written before the tier sweep existed
+                parts.append(f"multi-turn: {w.get('multi_turn_clients', '?')} clients / "
+                             f"{w.get('multi_turn_num_conversations', '?')} conversations")
         out.append("\nworkload: " + " | ".join(parts))
     return out
 

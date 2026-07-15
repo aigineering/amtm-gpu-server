@@ -49,14 +49,15 @@ benchmark_context_output_len: 256
 # fetched by the fetch playbook). Runs with all instances serving. num_clients
 # = concurrent simulated users.
 benchmark_multi_turn: true
-benchmark_multi_turn_clients: 20
-# The harness requires max_active_conversations <= num_conversations. We
-# render our own generation config (templates/multi_turn_input.json.j2 —
-# upstream's ships only 24 conversations) sized at 3x the client count, so
+# Multi-turn sweeps the same user tiers as the other scenarios — cache
+# pressure scales with clients, so the high tiers are where KV-offloading
+# effects become visible.
+benchmark_multi_turn_tiers: "{{ benchmark_concurrency_tiers }}"
+# Conversations per client (the harness requires max_active <= total; we
+# render a per-tier generation config sized at clients x this factor, so
 # clients rotate between conversations with think-time: the reuse-after-idle
-# pattern the KV-offloading evaluation depends on.
-benchmark_multi_turn_num_conversations: "{{ benchmark_multi_turn_clients | int * 3 }}"
-benchmark_multi_turn_max_active_conversations: "{{ benchmark_multi_turn_num_conversations }}"
+# pattern the KV-offloading evaluation depends on).
+benchmark_multi_turn_conversations_per_client: 3
 # Conversation depth (turns per conversation, uniform range) — raise for the
 # deep-conversation / offloading profiles.
 benchmark_multi_turn_turns_min: 12

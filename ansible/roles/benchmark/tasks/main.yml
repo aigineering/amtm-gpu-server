@@ -172,8 +172,9 @@
         context_input_fraction: "{{ benchmark_context_input_fraction }}"
         context_output_len: "{{ benchmark_context_output_len }}"
         multi_turn: "{{ benchmark_multi_turn }}"
-        multi_turn_clients: "{{ benchmark_multi_turn_clients }}"
-        multi_turn_num_conversations: "{{ benchmark_multi_turn_num_conversations }}"
+        multi_turn_tiers: "{{ benchmark_multi_turn_tiers }}"
+        multi_turn_conversations_per_client: "{{ benchmark_multi_turn_conversations_per_client }}"
+        multi_turn_turns: "{{ benchmark_multi_turn_turns_min }}-{{ benchmark_multi_turn_turns_max }}"
 
 # --- Scenarios ---------------------------------------------------------------
 

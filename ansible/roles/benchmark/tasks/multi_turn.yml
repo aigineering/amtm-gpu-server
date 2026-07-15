@@ -2,10 +2,10 @@
 # Multi-turn conversation benchmark (vLLM's benchmark_serving_multi_turn.py,
 # fetched to the models volume by the fetch playbook). Replays full sessions —
 # accumulated history per turn, client think-time, shared prefixes — the
-# workload single-shot `vllm bench serve` cannot produce. All instances stay
-# serving; each endpoint is exercised in turn. Runs inside the serving image
-# (has aiohttp/numpy/pandas/transformers); the harness prints its statistics
-# table to stdout, captured per instance.
+# workload single-shot `vllm bench serve` cannot produce. Swept across the
+# same user tiers as the other scenarios; each tier gets its own generated
+# conversation set (conversations = clients × factor). All instances stay
+# serving; each endpoint is exercised in turn.
 
 - name: "Multi-turn: ensure all instances are running"
   ansible.builtin.command:
@@ -24,13 +24,20 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: "Multi-turn: render the conversation-generation config"
+- name: "Multi-turn: render a conversation-generation config per tier"
   ansible.builtin.template:
     src: multi_turn_input.json.j2
-    dest: "{{ benchmark_run_dir }}/multi_turn_input.json"
+    dest: "{{ benchmark_run_dir }}/multi_turn_input-c{{ item }}.json"
     mode: "0644"
+  vars:
+    benchmark_multi_turn_num_conversations: >-
+      {{ item | int * benchmark_multi_turn_conversations_per_client | int }}
+  loop: "{{ benchmark_multi_turn_tiers }}"
 
-- name: "Multi-turn: run against each endpoint"
+# Runs inside the serving image (has aiohttp/numpy/transformers; pandas and
+# xlsxwriter come from the pylibs dir via PYTHONPATH). The harness prints its
+# statistics table to stdout, captured per instance and tier.
+- name: "Multi-turn: run each endpoint at each tier"
   ansible.builtin.shell: >-
     docker run --rm --network host
     -v /opt/models:/models:ro
@@ -39,35 +46,35 @@
     -e PYTHONPATH=/models/benchmark/pylibs
     --entrypoint python3 {{ vllm_image }}
     benchmark_serving_multi_turn.py
-    --url http://localhost:{{ item.port }}
-    --model /models/{{ item.model_path | basename }}
-    --served-model-name {{ item.served_model_name | default(item.name) }}
-    --input-file /results/multi_turn_input.json
-    --num-clients {{ benchmark_multi_turn_clients }}
-    --max-active-conversations {{ benchmark_multi_turn_max_active_conversations }}
+    --url http://localhost:{{ item.1.port }}
+    --model /models/{{ item.1.model_path | basename }}
+    --served-model-name {{ item.1.served_model_name | default(item.1.name) }}
+    --input-file /results/multi_turn_input-c{{ item.0 }}.json
+    --num-clients {{ item.0 }}
+    --max-active-conversations {{ item.0 | int * benchmark_multi_turn_conversations_per_client | int }}
     {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
-    > {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt 2>&1
+    > {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.txt 2>&1
   args:
     # Resumability: the captured output is the completion marker. NOTE: a
     # failed harness run leaves its error text here too — delete the file to
-    # retry that instance.
-    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.txt"
+    # retry that instance/tier.
+    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.txt"
   changed_when: true
   async: 7200
   poll: 15
-  loop: "{{ vllm_instances }}"
+  loop: "{{ benchmark_multi_turn_tiers | product(vllm_instances) | list }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.1.name }} c{{ item.0 }}"
 
-- name: "Multi-turn: snapshot /metrics per endpoint"
+- name: "Multi-turn: snapshot /metrics per endpoint and tier"
   ansible.builtin.shell:
     cmd: >-
-      curl -s http://localhost:{{ item.port }}/metrics >
-      {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt
+      curl -s http://localhost:{{ item.1.port }}/metrics >
+      {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt
     # Don't re-scrape on resume — counters only grow, and overwriting produces
     # endless churn in the git-tracked results.
-    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt"
+    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt"
   changed_when: true
-  loop: "{{ vllm_instances }}"
+  loop: "{{ benchmark_multi_turn_tiers | product(vllm_instances) | list }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.1.name }} c{{ item.0 }}"
