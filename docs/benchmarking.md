@@ -65,12 +65,27 @@ rate, preemption/eviction counts, running/waiting queue depths. These explain
 *why* a latency number moved, and produce exactly the evidence needed for the
 parked KV-offloading decision ([model-tuning-and-placement.md](model-tuning-and-placement.md)).
 
-### Proposed SLO targets (to confirm with client)
+### Working SLO targets (adopted from industry norms, 2026-07-15)
 
-Working targets for "does this profile pass": TTFT p95 ≤ 1.5s, ITL p95 ≤ 100ms
-at the target concurrency. **Status: proposed, not confirmed** — the real
-numbers should come from the client's UX expectations and expected concurrent
-user count.
+The client has no usage metrics yet, so targets are anchored to human
+perception — the standard practice for chat serving:
+
+- **TTFT** anchors to UI-responsiveness psychology: <500ms feels immediate,
+  <1s responsive, >2–3s reads as broken.
+- **Inter-token latency** anchors to reading speed: ~250 words/min ≈ 5–7
+  tokens/s, so ≥10 tok/s per user stays ahead of the reader; ≥20 tok/s feels
+  premium. Falling below reading speed is the visible UX cliff.
+
+| Tier | TTFT p50 | TTFT p95 | ITL p95 (per-user tok/s) |
+|---|---|---|---|
+| 5 users | ≤ 500ms | ≤ 1.5s | ≤ 100ms (≥10 tok/s) |
+| 20 users | ≤ 500ms | ≤ 1.5s | ≤ 100ms (≥10 tok/s) |
+| 50 users | — | ≤ 2.5s | ≤ 100ms (≥10 tok/s) |
+
+TTFT relaxes at 50 users (queueing on one shared GPU); ITL does not — once a
+response streams, it must stay readable at any tier. A profile "passes" a tier
+when both metrics meet targets in the **co-located** scenario. Revisit these
+against real usage data once the client has any.
 
 ## Datasets
 
@@ -139,6 +154,8 @@ different configurations, even if the profile *name* is the same.
 | 2026-07-15 | Concurrency tiers: 5 / 20 / 50 users (+1-user floor) | The three cases to test per Simon; SLO pass/fail judged at each tier |
 | 2026-07-15 | Client-tailored dataset planned as follow-up to ShareGPT | Client's language/domain shifts token-based metrics; harness supports custom files |
 | 2026-07-15 | Every result embeds its resolved profile + versions (see "Result record") | Client will tweak params; results must be reproducible and never silently compared across differing configs |
+| 2026-07-15 | SLOs adopted from industry norms (perception-anchored), pending client data | Customer has no usage metrics; TTFT anchors to UI responsiveness, ITL to reading speed |
+| 2026-07-15 | Implementation stays playbook-based (Ansible roles/playbooks, no side tooling) | Same operating model as the rest of the repo; agentless, works against the offline customer box |
 
 ## Considered and rejected (for now)
 
@@ -157,7 +174,8 @@ different configurations, even if the profile *name* is the same.
 
 ## Open items
 
-- Confirm SLO targets with the client (concurrency tiers now set: 5/20/50).
+- Revisit SLO targets when the client has real usage data (working targets
+  adopted from industry norms meanwhile).
 - Client-domain/language dataset — planned, needs the client's traffic profile.
 - How the ShareGPT file gets onto the box (fetch playbook vs git-tracked
   subset) — decide at implementation.
