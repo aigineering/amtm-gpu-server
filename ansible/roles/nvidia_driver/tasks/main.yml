@@ -63,16 +63,28 @@
     # only provides via EPEL — the CUDA repo itself doesn't ship it ("nothing
     # provides dkms >= 3.1.8" at depsolve otherwise).
     #
-    # Fetched by dnf itself (libcurl), NOT via rpm_key/get_url: in-Python https
-    # fetches on the target intermittently fail with "[ASN1: NOT_ENOUGH_DATA]"
-    # (same issue as the CUDA repo task above). disable_gpg_check only covers
-    # this bootstrap rpm — it installs the EPEL signing key, and every package
-    # later installed FROM EPEL is verified against it as usual.
+    # Installed via the dnf CLI, NOT the ansible dnf module or rpm_key/get_url:
+    # every one of those downloads URL arguments through the target's Python ssl
+    # stack first, which intermittently fails with "[ASN1: NOT_ENOUGH_DATA]"
+    # (same issue as the CUDA repo task above). The dnf CLI fetches with
+    # libcurl, which works. dnf's default localpkg_gpgcheck=false applies to
+    # this bootstrap rpm only — it installs the EPEL signing key, and every
+    # package later installed FROM EPEL is verified against it as usual.
+    - name: Check whether epel-release is installed
+      ansible.builtin.command: rpm -q epel-release
+      register: epel_check
+      changed_when: false
+      failed_when: false
+
     - name: Install EPEL repo (provides dkms)
-      ansible.builtin.dnf:
-        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-        state: present
-        disable_gpg_check: true
+      ansible.builtin.command:
+        cmd: dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+      register: epel_install
+      retries: 3
+      delay: 5
+      until: epel_install is not failed
+      changed_when: true
+      when: epel_check.rc != 0
 
     - name: Install NVIDIA kernel module (open dkms) and userspace driver
       ansible.builtin.dnf:
