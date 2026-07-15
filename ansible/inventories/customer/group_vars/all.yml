@@ -20,6 +20,50 @@ vllm_deploy_dir: /opt/vllm
 model_fetch_hf_token: "{{ vault_hf_token | default('') }}"
 model_fetch_force: false
 
+# Full model catalog fetched by playbooks/fetch-models.yml (~150GB — confirm
+# disk space AND the egress window is long enough before running against this
+# host; see docs/model-fetching.md). Everything lands in one window so serving
+# profiles can swap models/quantizations without needing the network again.
+# /opt/models paths: confirm with the customer before fetching. bge-m3 is an
+# embedding model (not served by the vllm role) — fetched for later use.
+model_fetch_repos:
+  - name: gemma-4-31b-it-awq
+    repo_id: "QuantTrio/gemma-4-31B-it-AWQ"
+    model_path: "/opt/models/gemma-4-31b-it-awq"
+    revision: main
+  - name: gemma-4-31b-it-awq-4bit
+    repo_id: "cyankiwi/gemma-4-31B-it-AWQ-4bit"
+    model_path: "/opt/models/gemma-4-31b-it-awq-4bit"
+    revision: main
+  - name: gemma-4-31b-it-fp8-block
+    repo_id: "RedHatAI/gemma-4-31B-it-FP8-block"
+    model_path: "/opt/models/gemma-4-31b-it-fp8-block"
+    revision: main
+  - name: gemma-4-31b-it-fp8-dynamic
+    repo_id: "RedHatAI/gemma-4-31B-it-FP8-Dynamic"
+    model_path: "/opt/models/gemma-4-31b-it-fp8-dynamic"
+    revision: main
+  - name: gemma-4-26b-a4b-it-fp8-dynamic
+    repo_id: "RedHatAI/gemma-4-26B-A4B-it-FP8-Dynamic"
+    model_path: "/opt/models/gemma-4-26b-a4b-it-fp8-dynamic"
+    revision: main
+  - name: gemma-4-26b-a4b-it-awq-4bit
+    repo_id: "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+    model_path: "/opt/models/gemma-4-26b-a4b-it-awq-4bit"
+    revision: main
+  - name: llama-3.2-3b-instruct-awq-int4
+    repo_id: "cyankiwi/Llama-3.2-3B-Instruct-AWQ-INT4"
+    model_path: "/opt/models/llama-3.2-3b-instruct-awq-int4"
+    revision: main
+  - name: meta-llama-3.1-8b-instruct-awq-int4
+    repo_id: "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4"
+    model_path: "/opt/models/meta-llama-3.1-8b-instruct-awq-int4"
+    revision: main
+  - name: bge-m3
+    repo_id: "BAAI/bge-m3"
+    model_path: "/opt/models/bge-m3"
+    revision: main
+
 # Model repos are expected to already be present on the host as full local copies
 # (config.json, tokenizer files, safetensors) before the vllm role runs — it never
 # downloads anything. Confirm the real model_path with the customer before deploying.

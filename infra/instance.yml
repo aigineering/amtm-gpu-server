@@ -73,6 +73,9 @@ Resources:
               echo "UUID=$UUID /opt/models xfs defaults,nofail 0 2" >> /etc/fstab
             fi
             mount -a
+            # No-op unless the EBS volume was enlarged since the fs was made —
+            # lets a stack-level size bump take effect on the next boot.
+            xfs_growfs /opt/models || true
           - VolId:
               Fn::ImportValue: !Sub "${ModelsStackName}-ModelsVolumeId"
       Tags:

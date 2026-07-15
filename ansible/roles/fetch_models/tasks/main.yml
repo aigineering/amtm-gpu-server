@@ -3,17 +3,21 @@
 # docs/host-safety-model.md): check reachability before attempting anything, fail
 # loudly and specifically if the IT-approved internet-access window isn't open yet,
 # and skip any model that's already present rather than re-downloading it.
+#
+# Fetches the full model_fetch_repos catalog (defaults to vllm_instances) — the
+# whole catalog lands in one egress window so profiles can swap models later
+# without the network. See docs/model-fetching.md.
 
-- name: Assert every vllm_instances entry has a repo_id to fetch from
+- name: Assert every model_fetch_repos entry has a repo_id to fetch from
   ansible.builtin.assert:
     that:
       - item.repo_id is defined
       - item.repo_id | length > 0
     fail_msg: >-
-      vllm_instances entry '{{ item.name }}' has no repo_id. Add the Hugging Face
-      repo id to fetch from in group_vars/all.yml before running
+      model_fetch_repos entry '{{ item.name }}' has no repo_id. Add the Hugging
+      Face repo id to fetch from in group_vars/all.yml before running
       playbooks/fetch-models.yml — see docs/model-fetching.md.
-  loop: "{{ vllm_instances }}"
+  loop: "{{ model_fetch_repos }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -51,7 +55,7 @@
     path: "{{ item.model_path }}"
     state: directory
     mode: "0755"
-  loop: "{{ vllm_instances }}"
+  loop: "{{ model_fetch_repos }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -59,7 +63,7 @@
   ansible.builtin.stat:
     path: "{{ item.model_path }}/config.json"
   register: model_present_check
-  loop: "{{ vllm_instances }}"
+  loop: "{{ model_fetch_repos }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -97,7 +101,7 @@
   ansible.builtin.command: "du -sh {{ item.model_path }}"
   register: model_disk_usage
   changed_when: false
-  loop: "{{ vllm_instances }}"
+  loop: "{{ model_fetch_repos }}"
   loop_control:
     label: "{{ item.name }}"
 

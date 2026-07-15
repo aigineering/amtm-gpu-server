@@ -18,15 +18,28 @@ or not the box currently has internet access. So fetching is its own playbook,
   isn't open, rather than hanging on a blocked connection or failing deep inside
   `hf` CLI with a confusing error.
 
+## What gets fetched: the full catalog, not just the serving pair
+
+The playbook iterates **`model_fetch_repos`** (in `group_vars/all.yml`) — the
+complete catalog of models the client may want to serve or compare, currently
+nine repos (~150GB): four gemma-4-31B quantizations (AWQ ×2, FP8 ×2), two
+gemma-4-26B-A4B quantizations, two Llama AWQ builds, and the bge-m3 embedding
+model (not served by the `vllm` role; fetched for later use). The rationale:
+egress windows are scarce, so **everything lands in one window**, and serving
+profiles can then swap models/quantizations offline. `model_fetch_repos`
+defaults to `vllm_instances` when a catalog isn't defined (the entries share
+the same shape). Before fetching, confirm the models volume has room — the
+test env's volume default is sized for the catalog.
+
 ## What it does, in order
 
-1. Asserts every `vllm_instances` entry has a `repo_id` configured.
+1. Asserts every `model_fetch_repos` entry has a `repo_id` configured.
 2. Checks that `https://huggingface.co` is reachable; fails clearly if not.
 3. Installs `huggingface_hub[cli]` into an isolated virtualenv
    (`/opt/model-fetch-venv` by default) — this never touches system Python packages,
    so cleanup is just deleting that directory.
-4. For each instance, skips the download if `model_path` already contains a
-   `config.json` (unless `model_fetch_force: true`); otherwise runs
+4. For each catalog entry, skips the download if `model_path` already contains
+   a `config.json` (unless `model_fetch_force: true`); otherwise runs
    `hf download <repo_id> --revision <revision> --local-dir <model_path>`.
 5. Reports disk usage per model directory when done.
 

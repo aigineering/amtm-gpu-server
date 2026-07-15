@@ -12,7 +12,13 @@ Parameters:
     Description: AZ for the volume; the instance must launch in the same AZ.
   ModelsVolumeSizeGiB:
     Type: Number
-    Default: 100
+    Default: 300
+    Description: >-
+      Sized for the full model catalog (~150GB as of 2026-07, the 31B FP8 repos
+      are ~33GB each) plus versioned side-by-side copies. Existing stacks keep
+      their previous size on update unless overridden; the instance user-data
+      runs xfs_growfs on every boot, so enlarging a volume takes effect on the
+      next reset/reboot.
 
 Resources:
   ModelsVolume:

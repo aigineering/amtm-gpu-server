@@ -18,7 +18,7 @@ fight each other:
   plain `reset` can never touch it, while `reset --wipe-models` can swap the
   current AZ's for a blank one without disturbing the key/SG/IP. Per-AZ because
   L40S capacity is scarce and zone-dependent: hopping AZs keeps a warm model
-  cache in every zone you've visited (~$8/mo per idle 100GB volume) instead of
+  cache in every zone you've visited (~$24/mo per idle 300GB volume) instead of
   forcing a re-fetch on each hop.
 - **`gpu-vllm-test-instance`** (`infra/instance.yml`) — the RHEL 9 GPU instance
   (default `g6e.2xlarge`: 1× L40S 48GB, 64 GiB RAM — the RAM headroom also
@@ -44,7 +44,7 @@ infra/env.sh tunnel               # forward vLLM ports 8001/8002 to localhost (C
 infra/env.sh down                 # full teardown incl. models volume (confirms first)
 ```
 
-Defaults are `us-east-1` / `us-east-1c` / `g6e.2xlarge`, overridable via
+Defaults are `us-east-1` / `us-east-1a` / `g6e.2xlarge`, overridable via
 `AWS_REGION`, `AZ`, and `INSTANCE_TYPE` env vars.
 
 Every command first verifies (via `sts get-caller-identity`) that the current
@@ -55,12 +55,12 @@ Override with `AWS_ACCOUNT=<id>` if the env ever moves.
 ## When to reset vs stop
 
 - **`stop`** is the cost lever. Everything on both disks survives; you stop
-  paying ~$1.86/hr for the g6e.xlarge and keep paying only for the two EBS
-  volumes and the idle-EIP fee (a few $/month total).
+  paying the g6e.2xlarge on-demand rate (~$2.2/hr) and keep paying only for
+  the EBS volumes and the idle-EIP fee.
 - **`reset`** is the correctness lever. This repo's whole point is "run once on
   a clean box, then re-run on a box that already has things installed" — reset
   gives you the clean box back to re-verify `site.yml` from scratch, without
-  re-fetching ~20GB of models. After a reset, clear the old host key
+  re-fetching the ~150GB model catalog. After a reset, clear the old host key
   (`ssh-keygen -R <ip>`) before running Ansible.
 - **`reset --wipe-models`** additionally replaces the models volume with a
   blank one — use it to re-verify the fetch playbook end-to-end, or if the

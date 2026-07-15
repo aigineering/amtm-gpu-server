@@ -11,3 +11,10 @@ model_fetch_hf_token: ""
 
 # Re-download even if model_path already contains a config.json.
 model_fetch_force: false
+
+# What to fetch: a catalog of {name, repo_id, model_path, revision} entries,
+# deliberately decoupled from vllm_instances — the point is to land the WHOLE
+# model catalog on disk during one egress window, so serving profiles can swap
+# models/quantizations later without needing the network again. Defaults to
+# the serving instances (same entry shape) if no catalog is defined.
+model_fetch_repos: "{{ vllm_instances }}"

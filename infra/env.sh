@@ -18,11 +18,11 @@
 # L40S capacity is scarce and per-AZ, so the models volume is one stack PER AZ:
 # hop zones with e.g. `AZ=us-east-1b infra/env.sh reset` — the first visit to a
 # new AZ creates a blank volume there (re-run fetch-models once), and every AZ
-# you've visited keeps its warm model cache (~$8/mo per 100GB volume) until 'down'.
+# you've visited keeps its warm model cache (~$24/mo per 300GB volume) until 'down'.
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
-AZ="${AZ:-us-east-1c}"
+AZ="${AZ:-us-east-1b}"
 INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.2xlarge}"
 EXPECTED_ACCOUNT="${AWS_ACCOUNT:-088070740738}"
 
@@ -148,7 +148,7 @@ cmd_reset() {
   local wipe=false
   [ "${1:-}" = "--wipe-models" ] && wipe=true
   if $wipe; then
-    echo "This replaces the models volume with a BLANK one (re-fetch ~20GB after)."
+    echo "This replaces the models volume with a BLANK one (re-fetch the ~150GB catalog after)."
     read -r -p "Type 'yes' to confirm: " ans
     [ "$ans" = "yes" ] || { echo "aborted"; exit 1; }
   fi
