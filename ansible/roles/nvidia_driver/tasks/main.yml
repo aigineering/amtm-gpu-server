@@ -46,11 +46,18 @@
     - nvidia_driver_needs_install
     - nvidia_driver_manage
   block:
+    # dnf config-manager (libcurl) instead of get_url: the target's Python ssl
+    # stack intermittently fails against the NVIDIA CDN with
+    # "[ASN1: NOT_ENOUGH_DATA]". This is also NVIDIA's documented install method.
+    # dnf-plugins-core (provides config-manager) is installed by the common role.
     - name: Add NVIDIA CUDA repo (RHEL 9)
-      ansible.builtin.get_url:
-        url: "{{ nvidia_driver_repo_url }}"
-        dest: /etc/yum.repos.d/cuda-rhel9.repo
-        mode: "0644"
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo {{ nvidia_driver_repo_url }}
+        creates: /etc/yum.repos.d/cuda-rhel9.repo
+      register: nvidia_repo_add
+      retries: 3
+      delay: 5
+      until: nvidia_repo_add is not failed
 
     - name: Install NVIDIA kernel module (open dkms) and userspace driver
       ansible.builtin.dnf:
