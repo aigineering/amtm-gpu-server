@@ -142,6 +142,23 @@ Levers, in order: the harness's `--no-early-stop` flag, deeper conversations
 (`benchmark_multi_turn_turns_min/max`), more conversations/clients
 (`benchmark_multi_turn_tiers`, `benchmark_multi_turn_conversations_per_client`).
 
+**First `-kv` run analysis (26B-A4B @ 8k, 2026-07-15) — assumptions checked.**
+Multi-turn does exercise the prefix cache as designed: 42% GPU hit rate, ~1.1M
+hit-tokens. Two findings from the same metrics: (1) the unexpected prefix hits
+during solo/context stages were a **same-seed artifact** — every tier sampled
+with the same seed, so later tiers re-sent earlier tiers' identical prompts
+(the "random" context prompts regenerate byte-identically) and got cached
+prefills, flattering mid-tier TTFT. Fixed: seeds now derive per scenario+tier
+(`seed+tier` for ShareGPT, `+1000+tier` context, `+2000+tier` context-pair) —
+still deterministic, so profile-to-profile comparability is unchanged, but
+runs before the fix have optimistic mid-tier solo/context TTFT. (2) At 8k the
+external cache is barely *used* (736 hit-tokens, 0.17 GB loaded back — the
+209k-token GPU pool absorbs the multi-turn working set), while the store side
+is busy regardless (~168 GB pushed to RAM during the c50 context run alone) —
+so the kv-vs-off comparison of ShareGPT/context rows is a real measurement of
+offloading's standing overhead, and offload *benefit* should be looked for at
+bigger contexts / deeper conversations, as scoped.
+
 **Where `-kv` improvements can appear (expected signature).** ShareGPT and
 context runs have (near-)zero prefix reuse, so offloading *cannot* help there
 — those rows double as the idle-overhead control (expect flat or slightly

@@ -20,7 +20,7 @@
       --dataset-path /models/benchmark/datasets/sharegpt.json
       --num-prompts {{ bench_tier * benchmark_prompts_per_user }}
       --max-concurrency {{ bench_tier }}
-      --seed {{ benchmark_seed }}
+      --seed {{ benchmark_seed | int + bench_tier | int }}
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
@@ -79,7 +79,7 @@
       --random-output-len {{ benchmark_context_output_len }}
       --num-prompts {{ [bench_tier * benchmark_context_prompts_per_user, 4] | max }}
       --max-concurrency {{ bench_tier }}
-      --seed {{ benchmark_seed }}
+      --seed {{ benchmark_seed | int + 2000 + bench_tier | int }}
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
