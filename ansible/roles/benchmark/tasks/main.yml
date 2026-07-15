@@ -51,7 +51,7 @@
           | replace(vllm_api_key, 'REDACTED')
           if vllm_api_key | length > 0
           else benchmark_compose_snapshot.content | b64decode)
-         | hash('sha256'))[:10] }}
+         | hash('sha256'))[:10] }}-m{{ benchmark_methodology_version }}
     benchmark_repo_git_sha: "{{ lookup('pipe', 'git -C ' ~ playbook_dir ~ ' rev-parse HEAD') }}"
     benchmark_repo_git_dirty: "{{ (lookup('pipe', 'git -C ' ~ playbook_dir ~ ' status --porcelain') | length) > 0 }}"
 

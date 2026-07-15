@@ -344,8 +344,11 @@ root, or a single prompt): `ansible/run-campaign.sh profiles/solo-gemma-*.yml`.
 It stops at the first failure; because runs are resumable, re-running after a
 fix continues where it stopped, and it renders the comparison table at the end.
 
-**Runs are resumable.** The run id is `<profile>-<hash-of-applied-config>`,
-not a timestamp: re-running the same profile+config resumes into the same
+**Runs are resumable.** The run id is
+`<profile>-<hash-of-applied-config>-m<methodology-version>`, not a timestamp
+(the methodology version — `benchmark_methodology_version` — bumps when
+measurement semantics change, so old results can't silently satisfy a new
+methodology's resume markers): re-running the same profile+config resumes into the same
 directory, and every result file already present is skipped — including the
 whole stop/start model-reload cycle when an instance's solo tiers are all
 done. Changing anything in the applied config changes the hash and starts a

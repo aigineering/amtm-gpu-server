@@ -73,3 +73,11 @@ benchmark_multi_turn_no_early_stop: true
 # Label recorded in the result record; profiles (ansible/profiles/*.yml)
 # override this together with vllm_instances.
 profile_name: adhoc
+
+# Part of the run identity alongside the config hash. Bump when MEASUREMENT
+# semantics change (workload shape, seeds, harness flags, snapshot timing) so
+# old results can't silently satisfy the resume markers of a new methodology.
+# History: m1 = initial suite (same-seed artifact, early-stop multi-turn,
+# post-loop metrics snapshots); m2 = per-scenario+tier seeds, --no-early-stop,
+# in-run snapshots, c0 baseline, kvpool capture.
+benchmark_methodology_version: 2
