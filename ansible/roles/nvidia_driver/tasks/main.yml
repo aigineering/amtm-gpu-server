@@ -59,6 +59,19 @@
       delay: 5
       until: nvidia_repo_add is not failed
 
+    # The DKMS variant of the NVIDIA kernel module requires dkms, which RHEL 9
+    # only provides via EPEL — the CUDA repo itself doesn't ship it ("nothing
+    # provides dkms >= 3.1.8" at depsolve otherwise).
+    - name: Import EPEL GPG key
+      ansible.builtin.rpm_key:
+        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+        state: present
+
+    - name: Install EPEL repo (provides dkms)
+      ansible.builtin.dnf:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+        state: present
+
     - name: Install NVIDIA kernel module (open dkms) and userspace driver
       ansible.builtin.dnf:
         name:

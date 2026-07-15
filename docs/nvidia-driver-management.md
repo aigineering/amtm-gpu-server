@@ -46,6 +46,24 @@ So the `nvidia_driver` role is **detect-then-install**, never blind-install.
      and let the operator decide when to reboot.
 ```
 
+## What the managed install actually does
+
+The gated install block (only reached with `nvidia_driver_manage: true` and a
+missing/outdated driver):
+
+1. Adds the NVIDIA CUDA RHEL 9 repo via `dnf config-manager --add-repo` (libcurl —
+   `get_url`'s Python SSL stack intermittently fails against the NVIDIA CDN).
+2. Installs EPEL. The DKMS variant of the kernel module requires `dkms >= 3.1.8`,
+   which RHEL 9 only carries in EPEL — without it depsolve fails with
+   "nothing provides dkms". Note this adds a third-party repo to the host; on a
+   customer box that's one more reason `nvidia_driver_manage` stays `false` until
+   explicitly agreed.
+3. Installs `kmod-nvidia-open-dkms` + `nvidia-driver` + `nvidia-driver-cuda`. DKMS
+   (rather than NVIDIA's precompiled kmod streams) is deliberate: it builds against
+   whatever kernel the host actually runs, instead of requiring an exact
+   kernel/precompiled-kmod version match.
+4. Reports `reboot_required` and ends the host's run — never reboots by itself.
+
 ## Variables (`ansible/inventories/<env>/group_vars/all.yml`)
 
 | Variable | Purpose | Default |
