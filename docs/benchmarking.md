@@ -87,6 +87,15 @@ response streams, it must stay readable at any tier. A profile "passes" a tier
 when both metrics meet targets in the **co-located** scenario. Revisit these
 against real usage data once the client has any.
 
+Sanity check against current practice (2026-07): serving literature states SLOs
+on tail latency and optimizes "goodput" (throughput that still meets the SLO);
+published production-chatbot P99 TTFT bounds run far looser (up to ~20s at
+scale), so these targets are deliberately ambitious for a small dedicated box,
+not lax. Methodology notes adopted from the same sources: **open-loop load
+generation** (Poisson arrivals that don't slow down when the server does —
+closed-loop generators flatter the results) and **p99 recorded alongside p95**
+even where the SLO is stated at p95.
+
 ## Datasets
 
 ### Chosen
@@ -103,14 +112,24 @@ against real usage data once the client has any.
   demand). Caveat: random tokens defeat prefix caching, so its numbers are
   pessimistic for chat — used for controlled sweeps, not headline numbers.
 
-### Known limitation
+### Multi-turn conversations (second harness)
 
-`vllm bench serve` sends independent single-shot requests: it does not replay a
-conversation turn-by-turn, so **multi-turn prefix-cache reuse is
-under-exercised**. Prefix-cache hit rate from `/metrics` will look worse than
-real chat traffic. Acceptable for v0.2 (relative comparisons between profiles
-are still valid); a custom multi-turn driver is the known fix if cache behavior
-becomes the question being asked.
+`vllm bench serve` sends independent single-shot requests — it cannot replay a
+conversation turn-by-turn, so on its own it under-exercises multi-turn
+prefix-cache reuse. Resolution (2026-07-15): vLLM ships a dedicated tool,
+**`benchmark_serving_multi_turn.py`** (vllm-project RFC #20265 / PR #20267),
+that replays full sessions — each request carries the accumulated chat history,
+parallel clients alternate between conversations with natural think-time, and
+conversations come from ShareGPT-style JSON or a synthetic generator with
+controllable turn counts and shared-prefix sizes. Same metric family
+(TTFT/TPOT/e2e/throughput).
+
+Division of labor: `vllm bench serve` produces the standard, externally
+comparable single-shot numbers; the multi-turn harness produces the realistic
+chat numbers and meaningful prefix-cache hit rates (which also feed the parked
+KV-offloading decision). It lives in the vLLM repo's `benchmarks/` folder, not
+the container image — we vendor a pinned copy into this repo (Apache-2.0,
+provenance noted), which also satisfies the offline customer box.
 
 ### Planned: client-domain dataset
 
@@ -156,6 +175,8 @@ different configurations, even if the profile *name* is the same.
 | 2026-07-15 | Every result embeds its resolved profile + versions (see "Result record") | Client will tweak params; results must be reproducible and never silently compared across differing configs |
 | 2026-07-15 | SLOs adopted from industry norms (perception-anchored), pending client data | Customer has no usage metrics; TTFT anchors to UI responsiveness, ITL to reading speed |
 | 2026-07-15 | Implementation stays playbook-based (Ansible roles/playbooks, no side tooling) | Same operating model as the rest of the repo; agentless, works against the offline customer box |
+| 2026-07-15 | Second harness: vLLM's `benchmark_serving_multi_turn.py`, vendored at a pinned version | Only tool that replays real multi-turn sessions (history + think-time + shared prefixes); not in the container image, so vendor it (Apache-2.0) for the offline box |
+| 2026-07-15 | Open-loop (Poisson) load generation; p99 recorded alongside p95 | Closed-loop generators self-throttle and flatter results; SLO practice judges tails |
 
 ## Considered and rejected (for now)
 
