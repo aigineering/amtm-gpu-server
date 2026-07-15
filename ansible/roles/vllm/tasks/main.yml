@@ -147,8 +147,17 @@
     dest: "{{ vllm_deploy_dir }}/docker-compose.yml"
     mode: "0600"
 
+# wait: true blocks until every service's compose healthcheck reports healthy
+# (i.e. models are LOADED and serving), not merely started. Without it, the
+# apply returns while engines are still loading: a crash-during-load surfaces
+# minutes later as an opaque health-wait timeout in the benchmark instead of a
+# clear apply failure, and CI step timings misattribute model-load time.
 - name: Deploy vLLM services
   community.docker.docker_compose_v2:
     project_src: "{{ vllm_deploy_dir }}"
     state: present
     remove_orphans: true
+    wait: true
+    # Must cover serial startup of all instances (each up to
+    # vllm_healthcheck_start_period) plus image pull on a fresh box.
+    wait_timeout: 1800
