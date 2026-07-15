@@ -62,15 +62,17 @@
     # The DKMS variant of the NVIDIA kernel module requires dkms, which RHEL 9
     # only provides via EPEL — the CUDA repo itself doesn't ship it ("nothing
     # provides dkms >= 3.1.8" at depsolve otherwise).
-    - name: Import EPEL GPG key
-      ansible.builtin.rpm_key:
-        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
-        state: present
-
+    #
+    # Fetched by dnf itself (libcurl), NOT via rpm_key/get_url: in-Python https
+    # fetches on the target intermittently fail with "[ASN1: NOT_ENOUGH_DATA]"
+    # (same issue as the CUDA repo task above). disable_gpg_check only covers
+    # this bootstrap rpm — it installs the EPEL signing key, and every package
+    # later installed FROM EPEL is verified against it as usual.
     - name: Install EPEL repo (provides dkms)
       ansible.builtin.dnf:
         name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
         state: present
+        disable_gpg_check: true
 
     - name: Install NVIDIA kernel module (open dkms) and userspace driver
       ansible.builtin.dnf:

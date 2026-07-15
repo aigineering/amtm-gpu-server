@@ -44,11 +44,17 @@
     - not (docker_detected and docker_service_active)
     - docker_manage
   block:
+    # dnf config-manager (libcurl) instead of get_url: in-Python https fetches on
+    # the target intermittently fail with "[ASN1: NOT_ENOUGH_DATA]" — same issue
+    # as the CUDA/EPEL repo tasks in the nvidia_driver role.
     - name: Add Docker CE repo
-      ansible.builtin.get_url:
-        url: "{{ docker_ce_repo_url }}"
-        dest: /etc/yum.repos.d/docker-ce.repo
-        mode: "0644"
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo {{ docker_ce_repo_url }}
+        creates: /etc/yum.repos.d/docker-ce.repo
+      register: docker_repo_add
+      retries: 3
+      delay: 5
+      until: docker_repo_add is not failed
       when: not docker_detected
 
     - name: Install Docker packages
@@ -111,11 +117,17 @@
     - not (nvidia_toolkit_detected and nvidia_runtime_configured)
     - docker_manage
   block:
+    # Same libcurl-not-Python rationale as the Docker CE repo task above. The
+    # downloaded file keeps its source basename, so creates: matches the repo
+    # file name at the URL (nvidia-container-toolkit.repo).
     - name: Add NVIDIA Container Toolkit repo
-      ansible.builtin.get_url:
-        url: "{{ nvidia_container_toolkit_repo_url }}"
-        dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
-        mode: "0644"
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo {{ nvidia_container_toolkit_repo_url }}
+        creates: /etc/yum.repos.d/nvidia-container-toolkit.repo
+      register: nvidia_toolkit_repo_add
+      retries: 3
+      delay: 5
+      until: nvidia_toolkit_repo_add is not failed
       when: not nvidia_toolkit_detected
 
     - name: Install nvidia-container-toolkit
