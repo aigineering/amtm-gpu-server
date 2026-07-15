@@ -96,13 +96,17 @@ automation with a different setting is how we'll compare configurations.
 
 ## Current status
 
-- Automation scaffolding is in place and reviewed; not yet run against real hardware.
+- The full stack has been validated end-to-end on the AWS test server: both
+  models serve simultaneously on one GPU, and the memory split has been tuned
+  and verified against real hardware (version 0.1).
+- Access to the test server's model endpoints requires an API key, so the
+  public test machine can't be used by strangers.
+- A benchmarking suite is in place to measure response speed under realistic
+  concurrent-user load and to compare configurations objectively; first full
+  measurement run is the next step.
 - The exact on-disk location of each model repo on the customer's server is
-  intentionally left as a placeholder until we confirm it against the real server.
-- Provisioning of the AWS test server is scripted (one command up, one command
-  reset to a clean machine, one command teardown), with model storage on a
-  separate disk so a machine reset doesn't require re-downloading models.
-- Next step: bring up the AWS test server and do the first full run there.
+  intentionally left as a placeholder until we confirm it against the real
+  server.
 
 See [architecture.md](architecture.md), [host-safety-model.md](host-safety-model.md),
 and [model-tuning-and-placement.md](model-tuning-and-placement.md) for the

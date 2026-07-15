@@ -38,20 +38,25 @@ it behaves if the window isn't open yet.
 3. Confirm `nvidia_driver_manage: true` in
    `ansible/inventories/aws-test/group_vars/all.yml` (default) — this box is disposable,
    so a from-scratch driver install is expected.
-4. Dry-run first:
+4. Create the vault (one-time; holds the HF token and the vLLM API key — the
+   test box's endpoints are public, the key is mandatory; see the README
+   operator guide for the exact snippet). Every run below passes
+   `--ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml`
+   (abbreviated `<vault args>`).
+5. Dry-run first:
    ```bash
-   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --check --diff
+   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --check --diff <vault args>
    ```
-5. Real run:
+6. Real run:
    ```bash
-   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
+   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml <vault args>
    ```
-6. If the driver role reports `reboot_required: true`, reboot manually and re-run:
+7. If the driver role reports `reboot_required: true`, reboot manually and re-run:
    ```bash
    ansible gpu_servers -i inventories/aws-test/hosts.yml -m reboot -b
-   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
+   ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml <vault args>
    ```
-7. Verify both vLLM endpoints (public on the test box, API-key protected —
+8. Verify both vLLM endpoints (public on the test box, API-key protected —
    see [vllm-configuration.md](vllm-configuration.md)):
    ```bash
    curl -H "Authorization: Bearer <key>" http://<host>:8001/v1/models   # gemma
@@ -113,6 +118,7 @@ commands, "Interpreting results" for reading the output):
 
 ```bash
 ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml \
   -e @profiles/baseline.yml
 python3 ../benchmarks/render_results.py
 ```

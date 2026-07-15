@@ -200,11 +200,20 @@ Then, per configuration you want to measure:
 ```bash
 # 3. Apply the profile you want to measure (skip if it's already what's running)
 ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml \
-  --tags vllm -e @profiles/baseline.yml
+  --tags vllm --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml \
+  -e @profiles/baseline.yml
 
 # 4. Run the suite (expect ~1h for the full default matrix)
 ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml \
   -e @profiles/baseline.yml
+```
+
+The vault matters on both steps: it carries `vault_vllm_api_key`, which the
+serving containers enforce and the bench/multi-turn harnesses authenticate
+with (the key is redacted from the result records).
+
+```bash
 
 # 5. Render the comparison (from the repo root, on your machine)
 python3 benchmarks/render_results.py            # all runs

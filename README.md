@@ -118,36 +118,50 @@ chmod 600 ../.ssh/aws_key
 ansible all -i inventories/aws-test/hosts.yml -m ping
 ```
 
-### 1.3 Fetch the models (one-time per box)
+### 1.3 Create the vault (secrets, one-time per environment)
 
-`site.yml` never downloads models — they must already be on disk. The `repo_id`s
-in `inventories/aws-test/group_vars/all.yml` point at the current AWQ builds
-(`cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit`, `cyankiwi/Llama-3.2-3B-Instruct-AWQ-INT4`).
-Store your HF token in Vault, then run the fetch playbook:
+Two secrets live in an encrypted vault file: the Hugging Face token (only
+needed for gated model repos during fetch; the current catalog is public) and
+the **vLLM API key** — required, because the test box exposes ports 8001–8002
+publicly and the key is what stops strangers from using your GPU (see
+[docs/vllm-configuration.md](docs/vllm-configuration.md)):
 
 ```bash
-cat > inventories/aws-test/group_vars/vault.yml <<'EOF'
+cat > inventories/aws-test/group_vars/vault.yml <<EOF
 vault_hf_token: hf_xxxxxxxxxxxx
+vault_vllm_api_key: $(openssl rand -hex 32)
 EOF
 ansible-vault encrypt inventories/aws-test/group_vars/vault.yml
+```
 
+Every playbook run below passes `--ask-vault-pass -e @…/vault.yml` — the
+explicit `-e @…` is needed because `vault.yml` doesn't match a group name, so
+Ansible won't load it from `group_vars/` on its own. **Deploying without it
+serves the public endpoints with no API key.**
+
+### 1.4 Fetch the models (one-time per box)
+
+`site.yml` never downloads models — they must already be on disk. The fetch
+playbook pulls the full model catalog (`model_fetch_repos` in group_vars,
+~150GB) plus the benchmark dataset and harness:
+
+```bash
 ansible-playbook -i inventories/aws-test/hosts.yml playbooks/fetch-models.yml \
   --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml
 ```
 
-(The explicit `-e @…` is needed because `vault.yml` doesn't match a group name, so
-Ansible won't load it from `group_vars/` on its own.)
-
 Downloads run async (up to 4 h) and resume if interrupted — if the run dies, just
 re-run it. Already-present models are skipped unless `model_fetch_force: true`.
 
-### 1.4 Deploy
+### 1.5 Deploy
 
 ```bash
 # always dry-run first — this is the habit you'll need on installation day
-ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --check --diff
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml --check --diff \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml
 
-ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml
+ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml
 ```
 
 If the driver was freshly installed, the run **stops itself** and reports that a
@@ -160,7 +174,7 @@ ansible-playbook -i inventories/aws-test/hosts.yml playbooks/site.yml   # re-run
 
 Then run the [verification checklist](#verification-checklist).
 
-### 1.5 Drills to practice before installation day
+### 1.6 Drills to practice before installation day
 
 1. **Reconfigure**: change `gpu_memory_utilization` or `max_model_len` in group_vars,
    re-apply with `--tags vllm`, verify both endpoints come back.
@@ -171,10 +185,11 @@ Then run the [verification checklist](#verification-checklist).
 4. **Diagnose**: kill one container, find the cause via `docker logs` (see
    [diagnostics](#diagnostics)).
 
-### 1.6 Benchmark a configuration
+### 1.7 Benchmark a configuration
 
 ```bash
 ansible-playbook -i inventories/aws-test/hosts.yml playbooks/benchmark.yml \
+  --ask-vault-pass -e @inventories/aws-test/group_vars/vault.yml \
   -e @profiles/baseline.yml
 python3 ../benchmarks/render_results.py
 ```
@@ -186,7 +201,7 @@ tables, the SLO verdicts, and the solo-vs-co-located delta — in
 [docs/benchmarking.md](docs/benchmarking.md). Test env only: it drives real
 load and stops/starts the serving containers.
 
-### 1.7 Teardown
+### 1.8 Teardown
 
 ```bash
 infra/env.sh down     # from the repo root — removes instance, key/SG/IP, and ALL models volumes
@@ -376,9 +391,18 @@ All changes go through `inventories/<env>/group_vars/all.yml` + `--tags vllm`.
 
 ## Status
 
-Early scaffolding — Ansible roles are being built out incrementally. Model repos are
-assumed to already exist on the target host as full local copies (see
-[docs/model-tuning-and-placement.md](docs/model-tuning-and-placement.md)); the exact
-`model_path` values and default GPU memory splits in
-`ansible/inventories/*/group_vars/all.yml` are placeholders and must be confirmed
-before a real deploy.
+**v0.1 validated end-to-end on the AWS test environment** (tagged `v0.1`):
+scripted provisioning (`infra/env.sh`), model fetch, driver/Docker/firewalld/
+SELinux roles, and both AWQ models serving concurrently on one L40S with the
+validated 0.68/0.2 GPU split — endpoints smoke-tested with text and image
+input. The vLLM ports are public on the test box, protected by an API key.
+
+**v0.2 (evaluation & profiles) is implemented, pending its first real run**:
+benchmark suite (solo / co-located / multi-turn across 1/5/20/50 users),
+serving profiles, and git-tracked self-describing results — see
+[docs/benchmarking.md](docs/benchmarking.md) and
+[docs/roadmap.md](docs/roadmap.md).
+
+The customer inventory still carries placeholders (`model_path`, driver
+minimum version) that must be confirmed against the real server before
+installation day.

@@ -69,10 +69,16 @@ plaintext:
 ```bash
 cd ansible
 ansible-vault create inventories/customer/group_vars/vault.yml
-# add a line: vault_hf_token: hf_xxxxxxxxxxxxxxxxxxxx
+# add:
+#   vault_hf_token: hf_xxxxxxxxxxxxxxxxxxxx
+#   vault_vllm_api_key: <long random string — see vllm-configuration.md>
 ```
 
-`group_vars/all.yml` already references `vault_hf_token` via
+The same vault file holds both secrets: `vault_hf_token` (fetch-time only) and
+`vault_vllm_api_key` (serve-time, wired via
+`vllm_api_key: "{{ vault_vllm_api_key | default('') }}"` in group_vars — see
+[vllm-configuration.md](vllm-configuration.md)). `group_vars/all.yml`
+references the token via
 `model_fetch_hf_token: "{{ vault_hf_token | default('') }}"`.
 
 Note that Ansible only auto-loads `group_vars/` files named after an inventory group
