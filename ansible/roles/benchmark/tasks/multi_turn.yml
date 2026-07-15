@@ -57,6 +57,7 @@
 # post-loop snapshot task produced four identical scrapes of the final state).
 - name: "Multi-turn: run each endpoint at each tier (+ immediate metrics snapshot)"
   ansible.builtin.shell: >-
+    start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ);
     docker run --rm --network host
     -v /opt/models:/models:ro
     -v {{ benchmark_run_dir }}:/results:ro
@@ -76,6 +77,9 @@
     rc=$?;
     curl -s http://localhost:{{ item.1.port }}/metrics >
     {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt;
+    docker logs --since "$start_ts" vllm-{{ item.1.name }} 2>&1
+    | grep -oE "GPU KV cache usage: [0-9.]+" | awk '{print $NF}' | sort -n | tail -1
+    > {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.kvuse.txt;
     exit $rc
   args:
     # Resumability: the captured output is the completion marker. NOTE: a

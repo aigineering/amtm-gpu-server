@@ -4,8 +4,9 @@
 # tier 20 means 20 simulated users on gemma AND 20 on llama at once.
 
 - name: "Co-located c{{ bench_tier }}: launch bench per endpoint (parallel)"
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >-
+      start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ);
       docker run --rm --network host
       -v /opt/models:/models:ro
       -v {{ benchmark_run_dir }}:/results
@@ -24,7 +25,12 @@
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
-      --result-filename colocated-{{ item.name }}-c{{ bench_tier }}.json
+      --result-filename colocated-{{ item.name }}-c{{ bench_tier }}.json;
+      rc=$?;
+      docker logs --since "$start_ts" vllm-{{ item.name }} 2>&1
+      | grep -oE "GPU KV cache usage: [0-9.]+" | awk '{print $NF}' | sort -n | tail -1
+      > {{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.kvuse.txt;
+      exit $rc
     # Resumability: the result file is the completion marker.
     creates: "{{ benchmark_run_dir }}/colocated-{{ item.name }}-c{{ bench_tier }}.json"
   async: 7200
@@ -62,8 +68,9 @@
 # Pair capacity mapping: random long inputs against BOTH endpoints at once —
 # answers "does <ctx> + two models fit on this GPU, at how many users".
 - name: "Context-pair c{{ bench_tier }}: launch long-input bench per endpoint (parallel)"
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >-
+      start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ);
       docker run --rm --network host
       -v /opt/models:/models:ro
       -v {{ benchmark_run_dir }}:/results
@@ -83,7 +90,12 @@
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
-      --result-filename contextpair-{{ item.name }}-c{{ bench_tier }}.json
+      --result-filename contextpair-{{ item.name }}-c{{ bench_tier }}.json;
+      rc=$?;
+      docker logs --since "$start_ts" vllm-{{ item.name }} 2>&1
+      | grep -oE "GPU KV cache usage: [0-9.]+" | awk '{print $NF}' | sort -n | tail -1
+      > {{ benchmark_run_dir }}/contextpair-{{ item.name }}-c{{ bench_tier }}.kvuse.txt;
+      exit $rc
     creates: "{{ benchmark_run_dir }}/contextpair-{{ item.name }}-c{{ bench_tier }}.json"
   async: 7200
   poll: 0

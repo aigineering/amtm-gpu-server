@@ -71,7 +71,7 @@ LEGEND = """\
 | req/s | Completed requests per second (capacity in user terms) |
 | run dur | Wall-clock duration of that benchmark run, seconds |
 | in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
-| KV use | GPU KV cache fill level at that row's post-run snapshot (cached prefixes retained in the pool) |
+| KV use | Peak GPU KV cache usage DURING the run (scraped from the engine's periodic log; the post-run gauge reads ~0 once load drains) |
 | GPU hit | GPU prefix-cache hit rate during that row (Δhits/Δqueries vs the previous snapshot in the run) |
 | ext hit | External (RAM-offloaded) prefix-cache hit rate during that row — requires KV offloading |
 | SLO | PASS/FAIL against the working targets (docs/benchmarking.md): TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms. Evaluated on every row; read per scenario — `colocated` is the binding product judgment, `solo` is a model's standalone ceiling, and `context`/`contextpair` failing at high tiers is the expected capacity cliff (worst-case probe), not a defect |
@@ -246,7 +246,8 @@ def load_runs(only=None):
             for r in chain:
                 cur = parse_offload_counters(
                     run_dir / f"{r['scenario']}-{name}-c{r['tier']}.metrics.txt")
-                r["cache_cells"] = cache_cells(cur, prev)
+                r["cache_cells"] = cache_cells(
+                    cur, prev, run_dir / f"{r['scenario']}-{name}-c{r['tier']}.kvuse.txt")
                 if cur:
                     prev = cur
         multiturn = []
@@ -259,7 +260,8 @@ def load_runs(only=None):
                               "clients": fm.group("clients") if fm else "?",
                               "stats": parse_multiturn(p),
                               "counters": parse_offload_counters(
-                                  p.with_name(p.name[:-4] + ".metrics.txt"))})
+                                  p.with_name(p.name[:-4] + ".metrics.txt")),
+                              "kvuse_file": p.with_name(p.name[:-4] + ".kvuse.txt")})
         # Multi-turn per-tier baselines: the c0 snapshot is metrics-only (no
         # harness report), so it must be collected directly, not via the
         # multiturn report list.
@@ -328,15 +330,25 @@ OFFLOAD_COUNTERS = {
     "queries": r"vllm:external_prefix_cache_queries_total\{[^}]*\}\s+([\d.e+]+)",
     "gpu_hits": r"vllm:prefix_cache_hits_total\{[^}]*\}\s+([\d.e+]+)",
     "gpu_queries": r"vllm:prefix_cache_queries_total\{[^}]*\}\s+([\d.e+]+)",
-    "kv_usage": r"vllm:gpu_cache_usage_perc\{[^}]*\}\s+([\d.e+-]+)",
+    "kv_usage": r"vllm:kv_cache_usage_perc\{[^}]*\}\s+([\d.e+-]+)",
 }
 
 
-def cache_cells(cur, prev):
+def read_kvuse(path):
+    """Peak GPU KV usage captured from the engine log during the run (percent)."""
+    try:
+        return f"{float(path.read_text().strip()):.0f}%"
+    except (OSError, ValueError):
+        return None
+
+
+def cache_cells(cur, prev, kvuse_file=None):
     """(KV use, GPU hit, ext hit) display cells from a snapshot + its baseline."""
+    kvuse = read_kvuse(kvuse_file) if kvuse_file else None
     if not cur:
-        return "—", "—", "—"
-    kvuse = f"{cur['kv_usage']:.0%}" if "kv_usage" in cur else "—"
+        return kvuse or "—", "—", "—"
+    if kvuse is None:
+        kvuse = f"{cur['kv_usage']:.0%}" if "kv_usage" in cur else "—"
     gpu = ext = "—"
     if prev:
         dq = cur.get("gpu_queries", 0) - prev.get("gpu_queries", 0)
@@ -503,7 +515,7 @@ def run_section(run):
             imeanmax = f"{itok['mean']:,.0f} / {itok['max']:,.0f}" if itok else "—"
 
             cur, base = m["counters"], prev_counters.get(m["name"])
-            kvuse, gpu_hit, ext_hit = cache_cells(cur, base)
+            kvuse, gpu_hit, ext_hit = cache_cells(cur, base, m.get("kvuse_file"))
             kv = "—"
             if cur and base and ("stored" in cur or "loaded" in cur):
                 ds = cur.get("stored", 0) - base.get("stored", 0)

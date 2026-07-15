@@ -4,9 +4,12 @@
 # the harness is versioned with the server and needs no host dependencies.
 # Expects: bench_instance, bench_tier, bench_scenario.
 
+# shell (not command): captures the run's PEAK GPU KV usage from the engine's
+# periodic log lines — the post-run gauge reads ~0 once load drains.
 - name: "Bench {{ bench_scenario }} {{ bench_instance.name }} c{{ bench_tier }}"
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >-
+      start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ);
       docker run --rm --network host
       -v /opt/models:/models:ro
       -v {{ benchmark_run_dir }}:/results
@@ -25,7 +28,12 @@
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
-      --result-filename {{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json
+      --result-filename {{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json;
+      rc=$?;
+      docker logs --since "$start_ts" vllm-{{ bench_instance.name }} 2>&1
+      | grep -oE "GPU KV cache usage: [0-9.]+" | awk '{print $NF}' | sort -n | tail -1
+      > {{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.kvuse.txt;
+      exit $rc
     # Resumability: the result file is the completion marker.
     creates: "{{ benchmark_run_dir }}/{{ bench_scenario }}-{{ bench_instance.name }}-c{{ bench_tier }}.json"
   changed_when: true
@@ -47,8 +55,9 @@
 # Context-stress: same endpoint/tier, random long inputs near max_model_len.
 # Zero prefix reuse by design — the capacity-mapping worst case.
 - name: "Context {{ bench_instance.name }} c{{ bench_tier }} ({{ bench_instance.max_model_len }} ctx)"
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >-
+      start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ);
       docker run --rm --network host
       -v /opt/models:/models:ro
       -v {{ benchmark_run_dir }}:/results
@@ -68,7 +77,12 @@
       --percentile-metrics ttft,tpot,itl,e2el
       --metric-percentiles 50,95,99
       --save-result --result-dir /results
-      --result-filename context-{{ bench_instance.name }}-c{{ bench_tier }}.json
+      --result-filename context-{{ bench_instance.name }}-c{{ bench_tier }}.json;
+      rc=$?;
+      docker logs --since "$start_ts" vllm-{{ bench_instance.name }} 2>&1
+      | grep -oE "GPU KV cache usage: [0-9.]+" | awk '{print $NF}' | sort -n | tail -1
+      > {{ benchmark_run_dir }}/context-{{ bench_instance.name }}-c{{ bench_tier }}.kvuse.txt;
+      exit $rc
     creates: "{{ benchmark_run_dir }}/context-{{ bench_instance.name }}-c{{ bench_tier }}.json"
   changed_when: true
   async: 7200
