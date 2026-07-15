@@ -26,9 +26,14 @@
 | in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
 | SLO | PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on `colocated` rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms |
 
-Multi-turn results (conversation replay with growing history — prefix-cache
-and KV-offloading behavior) are plain-text harness reports: see the
-`multiturn-*.txt` files inside each run directory.
+**Multi-turn conversations table** (conversation replay with growing history —
+prefix-cache and KV-offloading behavior): parsed from the harness reports.
+Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —
+the harness's report truncates mid percentiles when piped, so mean is the
+stable center),
+input tokens per request mean/max (shows how deep conversations grew), and
+approximate total tokens in/out (count × mean — the harness reports
+distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
 
 
 profile: **baseline** | config: `56c9afa477` | git: `ca060db65a` (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z
@@ -81,4 +86,9 @@ served (observed): `gemma` = gemma-4-26b-a4b-it-awq-4bit, `llama` = llama-3.2-3b
 
 totals: 20.0 min of benchmarked load across 32 runs | 4,647,702 prompt tokens in | 670,329 tokens generated
 
-multi-turn reports: `multiturn-gemma-c20.metrics.txt`, `multiturn-gemma-c20.txt`, `multiturn-llama-c20.metrics.txt`, `multiturn-llama-c20.txt`
+### Multi-turn conversations
+
+| instance | clients | req/s | TTFT mean/p99 | TPOT mean/p99 | e2e mean/p99 | input tok mean/max | ≈tok in/out total | runtime |
+|---|---|---|---|---|---|---|---|---|
+| gemma | 20 | 5.08 | 234 / 1,084 | 37 / 47 | 3,876 / 5,299 | 2,022 / 4,317 | 630,810 / 30,997 | 61s |
+| llama | 20 | 9.66 | 162 / 682 | 19 / 28 | 2,038 / 3,275 | 2,059 / 4,424 | 673,394 / 32,487 | 34s |

@@ -74,7 +74,9 @@ LEGEND = """\
 
 **Multi-turn conversations table** (conversation replay with growing history —
 prefix-cache and KV-offloading behavior): parsed from the harness reports.
-Columns: req/s (completed turns per second), TTFT/TPOT/e2e at p50/p99 (ms),
+Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —
+the harness's report truncates mid percentiles when piped, so mean is the
+stable center),
 input tokens per request mean/max (shows how deep conversations grew), and
 approximate total tokens in/out (count × mean — the harness reports
 distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
@@ -116,12 +118,18 @@ def parse_multiturn(path):
                 header = [("p" + p[:-1]) if p.endswith("%") else p for p in parts]
             continue
         if len(parts) == len(header) + 1 and re.fullmatch(r"[a-z_]+", parts[0]):
-            try:
-                stats["rows"][parts[0]] = {
-                    header[i]: float(parts[i + 1].replace(",", "")) for i in range(len(header))
-                }
-            except ValueError:
-                continue
+            row = {}
+            for i, value in enumerate(parts[1:]):
+                # pandas truncates wide tables with a literal "..." column when
+                # stdout is not a terminal — skip the marker, keep what exists.
+                if header[i] == "..." or value == "...":
+                    continue
+                try:
+                    row[header[i]] = float(value.replace(",", ""))
+                except ValueError:
+                    pass
+            if row:
+                stats["rows"][parts[0]] = row
     return stats if stats["rows"] else None
 
 
@@ -290,15 +298,18 @@ def run_section(run):
     unparsed = [m for m in run["multiturn"] if not m["stats"]]
     if parsed:
         out.append("\n### Multi-turn conversations\n")
-        out.append("| instance | clients | req/s | TTFT p50/p99 | TPOT p50/p99 | e2e p50/p99 | input tok mean/max | ≈tok in/out total | runtime |")
+        out.append("| instance | clients | req/s | TTFT mean/p99 | TPOT mean/p99 | e2e mean/p99 | input tok mean/max | ≈tok in/out total | runtime |")
         out.append("|---|---|---|---|---|---|---|---|---|")
         for m in parsed:
             s = m["stats"]
             r = s["rows"]
 
-            def pair(label, a="p50", b="p99"):
-                row = r.get(label)
-                return f"{row[a]:,.0f} / {row[b]:,.0f}" if row else "—"
+            def pair(label, a="mean", b="p99"):
+                row = r.get(label) or {}
+                fa, fb = row.get(a), row.get(b)
+                left = f"{fa:,.0f}" if fa is not None else "—"
+                right = f"{fb:,.0f}" if fb is not None else "—"
+                return f"{left} / {right}"
 
             itok = r.get("input_num_tokens")
             otok = r.get("output_num_tokens")
