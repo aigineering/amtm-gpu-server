@@ -79,5 +79,7 @@ profile_name: adhoc
 # old results can't silently satisfy the resume markers of a new methodology.
 # History: m1 = initial suite (same-seed artifact, early-stop multi-turn,
 # post-loop metrics snapshots); m2 = per-scenario+tier seeds, --no-early-stop,
-# in-run snapshots, c0 baseline, kvpool capture.
-benchmark_methodology_version: 2
+# in-run snapshots, c0 baseline, kvpool capture; m3 = per-row cache metrics
+# (run-start baseline, sharegpt snapshot before the context run, context/
+# contextpair snapshots, peak-KV-usage capture from the engine log).
+benchmark_methodology_version: 3
