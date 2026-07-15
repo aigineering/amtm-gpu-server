@@ -56,8 +56,11 @@ Two exceptions:
 
 - **GPU memory/compute capacity** (in the `vllm` role) is detection-only — there's
   nothing to "manage" about another process already using GPU memory, so it's always
-  checked and only asserts (fails) if the numbers don't add up. See
-  [vllm-configuration.md](vllm-configuration.md).
+  checked and only asserts (fails) if the numbers don't add up. The budget counts
+  only processes **outside this deployment** — memory held by our own vLLM
+  containers is excluded, since a re-apply recreates them (otherwise every config
+  change on a healthy serving box would trip the guard against its own workload).
+  See [vllm-configuration.md](vllm-configuration.md).
 - **firewalld** (in the `common` role) doesn't hard-fail when absent and unmanaged:
   a host without firewalld isn't broken — it may rely on a cloud security group or
   an external firewall — so the role reports the skip (naming the vLLM ports that

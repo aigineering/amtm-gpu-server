@@ -78,33 +78,61 @@
   # fact is computed from a skipped, empty register.
   check_mode: false
 
+# A re-apply recreates this deployment's own vLLM containers, so GPU memory
+# they hold right now is NOT real contention — without excluding it, every
+# config change on a healthy serving box trips the overcommit guard against
+# our own workload. Only processes outside this compose project count.
+- name: Measure GPU memory used by processes outside this deployment
+  ansible.builtin.shell: |
+    set -o pipefail
+    our_pids=$(docker ps --filter "label=com.docker.compose.project={{ vllm_deploy_dir | basename }}" -q \
+      | xargs -r -I{} docker top {} -eo pid 2>/dev/null | grep -E '^ *[0-9]+ *$' || true)
+    nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits \
+      | awk -F', *' -v pids="$our_pids" '
+          BEGIN { n = split(pids, a, /[[:space:]]+/); for (i = 1; i <= n; i++) own[a[i]] = 1 }
+          $1 != "" && !($1 + 0 in own) { s += $2 }
+          END { print s + 0 }'
+  register: gpu_foreign_memory_check
+  changed_when: false
+  # Read-only detection must run even under --check.
+  check_mode: false
+  failed_when: false
+
 - name: Parse GPU memory facts
   ansible.builtin.set_fact:
     gpu_memory_total_mib: "{{ gpu_memory_check.stdout_lines[0].split(',')[0] | trim | int }}"
     gpu_memory_used_mib: "{{ gpu_memory_check.stdout_lines[0].split(',')[1] | trim | int }}"
+    # Fall back to total used (conservative) if the exclusion pipeline failed.
+    gpu_memory_foreign_mib: >-
+      {{ (gpu_foreign_memory_check.stdout | trim | int)
+         if (gpu_foreign_memory_check.rc | default(1)) == 0
+         else (gpu_memory_check.stdout_lines[0].split(',')[1] | trim | int) }}
 
-- name: Compute requested vs. already-used GPU memory
+- name: Compute requested vs. foreign GPU memory
   ansible.builtin.set_fact:
-    gpu_memory_used_fraction: "{{ (gpu_memory_used_mib | float) / (gpu_memory_total_mib | float) }}"
+    gpu_memory_foreign_fraction: "{{ (gpu_memory_foreign_mib | float) / (gpu_memory_total_mib | float) }}"
     gpu_memory_requested_fraction: "{{ vllm_instances | map(attribute='gpu_memory_utilization') | map('float') | sum }}"
 
 - name: Report GPU memory budget
   ansible.builtin.debug:
     msg: >-
-      GPU memory already in use: {{ gpu_memory_used_mib }} MiB / {{ gpu_memory_total_mib }} MiB
-      ({{ (gpu_memory_used_fraction | float * 100) | round(1) }}%).
-      vllm_instances request a combined
+      GPU memory in use: {{ gpu_memory_used_mib }} MiB / {{ gpu_memory_total_mib }} MiB total;
+      {{ gpu_memory_foreign_mib }} MiB
+      ({{ (gpu_memory_foreign_fraction | float * 100) | round(1) }}%) belongs to processes
+      OUTSIDE this deployment (own vLLM containers excluded — they are recreated by the
+      apply). vllm_instances request a combined
       {{ (gpu_memory_requested_fraction | float * 100) | round(1) }}% of total GPU memory.
 
-- name: Fail if existing usage plus requested vLLM memory would overcommit the GPU
+- name: Fail if foreign usage plus requested vLLM memory would overcommit the GPU
   ansible.builtin.assert:
-    that: (gpu_memory_used_fraction | float) + (gpu_memory_requested_fraction | float) <= 0.97
+    that: (gpu_memory_foreign_fraction | float) + (gpu_memory_requested_fraction | float) <= 0.97
     fail_msg: >-
-      Existing GPU usage ({{ (gpu_memory_used_fraction | float * 100) | round(1) }}%) plus the
-      requested vllm_instances memory utilization ({{ (gpu_memory_requested_fraction | float * 100) | round(1) }}%)
-      would overcommit the GPU. Reduce gpu_memory_utilization values in group_vars, or
-      investigate what else is using the GPU (see the process list reported above)
-      before proceeding.
+      GPU usage by processes outside this deployment
+      ({{ (gpu_memory_foreign_fraction | float * 100) | round(1) }}%) plus the requested
+      vllm_instances memory utilization
+      ({{ (gpu_memory_requested_fraction | float * 100) | round(1) }}%) would overcommit
+      the GPU. Reduce gpu_memory_utilization values in group_vars, or investigate what
+      else is using the GPU (see the process list reported above) before proceeding.
 
 - name: Ensure vLLM deploy directory exists
   ansible.builtin.file:
