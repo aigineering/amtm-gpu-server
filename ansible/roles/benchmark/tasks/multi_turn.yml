@@ -24,10 +24,17 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: "Multi-turn: render the conversation-generation config"
+  ansible.builtin.template:
+    src: multi_turn_input.json.j2
+    dest: "{{ benchmark_run_dir }}/multi_turn_input.json"
+    mode: "0644"
+
 - name: "Multi-turn: run against each endpoint"
   ansible.builtin.shell: >-
     docker run --rm --network host
     -v /opt/models:/models:ro
+    -v {{ benchmark_run_dir }}:/results:ro
     -w /models/benchmark/multi_turn
     -e PYTHONPATH=/models/benchmark/pylibs
     --entrypoint python3 {{ vllm_image }}
@@ -35,7 +42,7 @@
     --url http://localhost:{{ item.port }}
     --model /models/{{ item.model_path | basename }}
     --served-model-name {{ item.served_model_name | default(item.name) }}
-    --input-file generate_multi_turn.json
+    --input-file /results/multi_turn_input.json
     --num-clients {{ benchmark_multi_turn_clients }}
     --max-active-conversations {{ benchmark_multi_turn_max_active_conversations }}
     {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
