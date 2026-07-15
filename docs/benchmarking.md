@@ -257,6 +257,32 @@ stops/starts containers. Useful narrowing knobs (pass as `-e`):
 `benchmark_multi_turn=false` to skip the multi-turn pass. Each run leaves a
 directory under `benchmarks/results/` — commit it; the history is the point.
 
+### What a run looks like in the logs (progress tracking)
+
+The load-generating tasks of a **solo profile** appear in this order — tiers
+interleave the ShareGPT run and the context probe, then the multi-turn sweep
+closes the run. Durations are for a 32k-context profile on the 31B; context
+runs scale roughly linearly with the window (8k ≈ 4× faster), ShareGPT and
+multi-turn runs barely change:
+
+| # | Task in the log | ~duration (32k) |
+|---|---|---|
+| 1 | `Bench solo <model> c1` | 2 min |
+| 2 | `Context <model> c1 (<ctx> ctx)` | 1–2 min |
+| 3 | `Bench solo <model> c5` | 2–3 min |
+| 4 | `Context <model> c5 (<ctx> ctx)` | 2–3 min |
+| 5 | `Bench solo <model> c20` | 4–6 min |
+| 6 | `Context <model> c20 (<ctx> ctx)` | 7–10 min |
+| 7 | `Bench solo <model> c50` | 8–12 min |
+| 8 | `Context <model> c50 (<ctx> ctx)` | 15–25 min — the long one |
+| 9 | `Multi-turn: run each endpoint at each tier` (c1/c5/c20/c50) | 5–10 min total |
+
+After #9 only bookkeeping remains (metrics snapshots, packaging, fetch,
+render) — seconds. Two-instance profiles run this once per model for solo,
+plus the co-located and context-pair sweeps. When dispatching a batch, order
+profiles by curiosity: 8k profiles finish ~2× faster than 32k ones, so their
+reports appear on the run page first.
+
 **Campaigns: `ansible/run-campaign.sh`.** For a batch of profiles, the script
 does apply → benchmark per profile with the vault password provided **once**
 (via `ANSIBLE_VAULT_PASSWORD_FILE`, a gitignored `.vault_pass` at the repo
