@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Render benchmark results as comparison tables.
+"""Render benchmark results as comparison tables (stdout + markdown report).
 
 Reads benchmarks/results/<run_id>/ directories produced by
-playbooks/benchmark.yml (see docs/benchmarking.md) and prints a markdown
-table per scenario, grouped so that runs with differing applied configs are
-never silently merged: the grouping key is the sha256 of the run's compose
-snapshot (the config actually applied on the host), not the profile name.
+playbooks/benchmark.yml (see docs/benchmarking.md), prints markdown tables per
+run, and writes the same report to benchmarks/results/REPORT.md. Runs are
+grouped so differing applied configs are never silently merged: the grouping
+key is the sha256 of the run's compose snapshot (the config actually applied
+on the host), not the profile name.
 
 Usage:
     python3 benchmarks/render_results.py            # all runs
@@ -21,6 +22,7 @@ import sys
 from pathlib import Path
 
 RESULTS_DIR = Path(__file__).parent / "results"
+REPORT_PATH = RESULTS_DIR / "REPORT.md"
 
 # vllm bench serve result filenames: <scenario>-<instance>-c<tier>.json
 # context = solo long-input capacity run; contextpair = both endpoints at once.
@@ -36,7 +38,39 @@ METRIC_COLUMNS = [
     ("p95_e2el_ms", "E2E p95"),
     ("output_throughput", "out tok/s"),
     ("request_throughput", "req/s"),
+    ("duration", "run dur"),
 ]
+
+LEGEND = """\
+### Legend
+
+**Scenarios**
+
+| Scenario | Meaning |
+|---|---|
+| `solo` | Model alone on the GPU (other instances stopped) — per-model best case. ShareGPT workload (realistic short chat). |
+| `colocated` | All models serving, load driven against every endpoint simultaneously — the production topology. ShareGPT workload. SLO verdicts are judged here. |
+| `context` | Solo capacity probe: random long inputs at ~80% of the model's context window, zero prefix reuse (worst-case KV pressure). |
+| `contextpair` | Same long-input probe against all endpoints at once — "does this context + all models fit, at how many users". |
+
+**Columns**
+
+| Column | Meaning |
+|---|---|
+| users | Concurrent simulated users (per model) for that row |
+| TTFT p50/p95/p99 | Time to first token, ms — perceived responsiveness ("is it thinking?") at the median / 95th / 99th percentile |
+| ITL p95 | Inter-token latency, ms — streaming smoothness; ≤100ms ≈ ≥10 tok/s per user, comfortably above reading speed |
+| TPOT p95 | Time per output token, ms — close cousin of ITL, includes scheduling effects |
+| E2E p95 | Full request latency, ms — complete answer time |
+| out tok/s | Aggregate output token throughput across all users (capacity) |
+| req/s | Completed requests per second (capacity in user terms) |
+| run dur | Wall-clock duration of that benchmark run, seconds |
+| SLO | PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on `colocated` rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms |
+
+Multi-turn results (conversation replay with growing history — prefix-cache
+and KV-offloading behavior) are plain-text harness reports: see the
+`multiturn-*.txt` files inside each run directory.
+"""
 
 # Working SLOs from docs/benchmarking.md (co-located scenario is what counts).
 SLO_TTFT_P95_MS = {1: 1500, 5: 1500, 20: 1500, 50: 2500}
@@ -67,13 +101,17 @@ def load_runs(only=None):
                 print(f"warning: unparseable {f}", file=sys.stderr)
                 continue
             results.append({**m.groupdict(), "data": data})
-        runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id, "results": results})
+        multiturn = sorted(p.name for p in run_dir.glob("multiturn-*.txt"))
+        runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
+                     "results": results, "multiturn": multiturn})
     return runs
 
 
-def fmt(value):
+def fmt(key, value):
     if value is None:
         return "—"
+    if key == "duration":
+        return f"{value:,.0f}s"
     if isinstance(value, float):
         return f"{value:,.1f}"
     return str(value)
@@ -92,41 +130,52 @@ def slo_verdict(scenario, tier, data):
 
 
 def render(runs):
+    out = ["# Benchmark results", "", LEGEND]
     for run in runs:
         meta = run["meta"]
-        print(f"\n## {run['run_id']}")
-        print(
+        out.append(f"\n## {run['run_id']}\n")
+        out.append(
             f"profile: **{meta.get('profile_name', '?')}** | config: `{run['config_id']}` | "
             f"git: `{str(meta.get('repo_git_sha', '?'))[:10]}`"
             f"{' (dirty)' if meta.get('repo_git_dirty') else ''} | "
             f"host: {meta.get('host', {}).get('instance_type', '?')} "
             f"({meta.get('host', {}).get('gpu', '?')}) | "
-            f"image: {meta.get('vllm_image', '?')}"
+            f"image: {meta.get('vllm_image', '?')} | "
+            f"first run: {meta.get('timestamp_utc', '?')}"
         )
-        if not run["results"]:
-            print("\n_(no parsed result files — multi-turn output is plain text, see the .txt files)_")
-            continue
-        headers = ["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS] + ["SLO"]
-        print("\n| " + " | ".join(headers) + " |")
-        print("|" + "---|" * len(headers))
-        ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
-        for r in ordered:
-            row = [r["scenario"], r["name"], r["tier"]]
-            row += [fmt(r["data"].get(key)) for key, _ in METRIC_COLUMNS]
-            row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
-            print("| " + " | ".join(row) + " |")
+        if run["results"]:
+            total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
+            headers = ["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS] + ["SLO"]
+            out.append("\n| " + " | ".join(headers) + " |")
+            out.append("|" + "---|" * len(headers))
+            ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
+            for r in ordered:
+                row = [r["scenario"], r["name"], r["tier"]]
+                row += [fmt(key, r["data"].get(key)) for key, _ in METRIC_COLUMNS]
+                row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
+                out.append("| " + " | ".join(row) + " |")
+            out.append(f"\ntotal benchmarked load time: {total_dur / 60:,.1f} min "
+                       f"across {len(run['results'])} runs")
+        else:
+            out.append("\n_(no parsed result files)_")
+        if run["multiturn"]:
+            out.append(f"\nmulti-turn reports: {', '.join('`' + m + '`' for m in run['multiturn'])}")
 
     # Warn when the same profile name maps to different applied configs.
     by_name = {}
     for run in runs:
         by_name.setdefault(run["meta"].get("profile_name", "?"), set()).add(run["config_id"])
-    for name, configs in by_name.items():
+    for name, configs in sorted(by_name.items()):
         if len(configs) > 1:
-            print(
-                f"\nWARNING: profile '{name}' appears with {len(configs)} different applied "
-                f"configs ({', '.join(sorted(configs))}) — do not compare across them.",
-                file=sys.stderr,
+            out.append(
+                f"\n**WARNING**: profile '{name}' appears with {len(configs)} different applied "
+                f"configs ({', '.join(sorted(configs))}) — do not compare across them."
             )
+
+    text = "\n".join(out) + "\n"
+    print(text)
+    REPORT_PATH.write_text(text)
+    print(f"(report written to {REPORT_PATH})", file=sys.stderr)
 
 
 if __name__ == "__main__":
