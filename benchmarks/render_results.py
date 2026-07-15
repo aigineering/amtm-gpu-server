@@ -3,7 +3,7 @@
 
 Reads benchmarks/results/<run_id>/ directories produced by
 playbooks/benchmark.yml (see docs/benchmarking.md), prints markdown tables per
-run, and writes the same report to benchmarks/results/REPORT.md. Runs are
+run, and writes the same report to benchmarks/results/README.md. Runs are
 grouped so differing applied configs are never silently merged: the grouping
 key is the sha256 of the run's compose snapshot (the config actually applied
 on the host), not the profile name.
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 RESULTS_DIR = Path(__file__).parent / "results"
-REPORT_PATH = RESULTS_DIR / "REPORT.md"
+REPORT_PATH = RESULTS_DIR / "README.md"
 
 # vllm bench serve result filenames: <scenario>-<instance>-c<tier>.json
 # context = solo long-input capacity run; contextpair = both endpoints at once.
