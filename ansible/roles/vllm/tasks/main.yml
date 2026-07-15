@@ -146,6 +146,34 @@
     src: docker-compose.yml.j2
     dest: "{{ vllm_deploy_dir }}/docker-compose.yml"
     mode: "0600"
+  register: vllm_compose_render
+
+# On a config change, tear the old deployment down and WAIT for the GPU to
+# actually release its memory before starting the new one. Without this, the
+# new engine can profile free memory while the old ~40GB process is still
+# releasing, and silently budget a crippled KV pool (observed: an 8k profile
+# booting with a 46k-token pool instead of ~190k). Unchanged config skips
+# this — idempotent re-applies keep warm containers.
+- name: Tear down the previous deployment before a config change
+  ansible.builtin.command:
+    cmd: docker compose down --remove-orphans
+    chdir: "{{ vllm_deploy_dir }}"
+  when: vllm_compose_render is changed
+  changed_when: true
+  failed_when: false  # first-ever deploy: nothing to tear down
+
+- name: Wait for the GPU to release the previous deployment's memory
+  ansible.builtin.shell: |
+    set -o pipefail
+    used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
+    echo "gpu used: ${used} MiB"
+    test "$used" -le {{ (gpu_memory_foreign_mib | default(0) | int) + 1500 }}
+  register: vllm_gpu_drain
+  until: vllm_gpu_drain.rc == 0
+  retries: 36
+  delay: 5
+  changed_when: false
+  when: vllm_compose_render is changed
 
 # wait: true blocks until every service's compose healthcheck reports healthy
 # (i.e. models are LOADED and serving), not merely started. Without it, the

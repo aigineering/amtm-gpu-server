@@ -42,7 +42,7 @@ profile: **solo-gemma-31b-32k** | config: `85c6e75d60` | git: `eba2cf6f5a` | hos
 
 | instance | model | context window | GPU mem fraction | KV pool | max conc @ctx | KV offload | other flags |
 |---|---|---|---|---|---|---|---|
-| gemma-31b | gemma-4-31b-it-awq-4bit | 32,768 | 0.9 | 46,894 tok | 5.72x @ 8,192 | off | `--enable-prefix-caching --enable-chunked-prefill` |
+| gemma-31b | gemma-4-31b-it-awq-4bit | 32,768 | 0.9 | — | — | off | `--enable-prefix-caching --enable-chunked-prefill` |
 
 workload: dataset=sharegpt | tiers=[1, 5, 20, 50] | prompts/user=8 | seed=42 | scenarios=['solo'] | context-stress inputs≈80% of window, 256 out | multi-turn: 20 clients / 60 conversations
 
