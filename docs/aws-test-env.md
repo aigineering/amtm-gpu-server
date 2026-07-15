@@ -36,6 +36,7 @@ infra/env.sh stop                 # done for the day: stop instance, pay only EB
 infra/env.sh start                # resume, same IP
 infra/env.sh status               # stacks, instance state, IP, ssh hint
 infra/env.sh ssh                  # ssh in as ec2-user with the repo key
+infra/env.sh tunnel               # forward vLLM ports 8001/8002 to localhost (Ctrl-C closes)
 infra/env.sh down                 # full teardown incl. models volume (confirms first)
 ```
 

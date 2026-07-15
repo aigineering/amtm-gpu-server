@@ -8,10 +8,12 @@
 #   infra/env.sh start                 start a stopped instance (same IP)
 #   infra/env.sh status                show stacks, instance state, IP
 #   infra/env.sh ssh                   ssh into the box
+#   infra/env.sh tunnel                forward the vLLM ports (8001, 8002) to localhost
 #   infra/env.sh down                  tear EVERYTHING down, including the models volume
 #
 # Overridables: AWS_REGION (us-east-1), AZ (us-east-1a), INSTANCE_TYPE (g6e.xlarge),
-# AWS_ACCOUNT (088070740738 — every command refuses to run against any other account)
+# AWS_ACCOUNT (088070740738 — every command refuses to run against any other account),
+# TUNNEL_PORTS ("8001 8002")
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
@@ -187,6 +189,19 @@ cmd_status() {
 
 cmd_ssh() { exec ssh -i "$PRIVKEY_FILE" "ec2-user@$(public_ip)"; }
 
+# The test box's SG only opens SSH — the vLLM ports are reached through a tunnel.
+# Runs in the foreground; Ctrl-C to close.
+cmd_tunnel() {
+  local ip forwards=()
+  ip=$(public_ip)
+  for p in ${TUNNEL_PORTS:-8001 8002}; do
+    forwards+=(-L "$p:localhost:$p")
+  done
+  echo ">> forwarding ${TUNNEL_PORTS:-8001 8002} to localhost (Ctrl-C to close)"
+  echo ">> try: curl http://localhost:8001/v1/models"
+  exec ssh -i "$PRIVKEY_FILE" -N "${forwards[@]}" "ec2-user@$ip"
+}
+
 case "${1:-}" in
   up)     check_account; cmd_up ;;
   reset)  check_account; cmd_reset "${2:-}" ;;
@@ -195,5 +210,6 @@ case "${1:-}" in
   start)  check_account; cmd_start ;;
   status) check_account; cmd_status ;;
   ssh)    check_account; cmd_ssh ;;
+  tunnel) check_account; cmd_tunnel ;;
   *) grep '^#   ' "$0" | sed 's/^#   //'; exit 1 ;;
 esac
