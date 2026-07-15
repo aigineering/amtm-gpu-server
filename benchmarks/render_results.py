@@ -3,7 +3,9 @@
 
 Reads benchmarks/results/<run_id>/ directories produced by
 playbooks/benchmark.yml (see docs/benchmarking.md), prints markdown tables per
-run, and writes the same report to benchmarks/results/README.md. Runs are
+run, writes each run's report to benchmarks/results/<run_id>/README.md (so
+GitHub renders it inside the run's folder) and an index to
+benchmarks/results/README.md. Runs are
 grouped so differing applied configs are never silently merged: the grouping
 key is the sha256 of the run's compose snapshot (the config actually applied
 on the host), not the profile name.
@@ -22,7 +24,7 @@ import sys
 from pathlib import Path
 
 RESULTS_DIR = Path(__file__).parent / "results"
-REPORT_PATH = RESULTS_DIR / "README.md"
+INDEX_PATH = RESULTS_DIR / "README.md"
 
 # vllm bench serve result filenames: <scenario>-<instance>-c<tier>.json
 # context = solo long-input capacity run; contextpair = both endpoints at once.
@@ -39,6 +41,8 @@ METRIC_COLUMNS = [
     ("output_throughput", "out tok/s"),
     ("request_throughput", "req/s"),
     ("duration", "run dur"),
+    ("total_input_tokens", "in tok"),
+    ("total_output_tokens", "out tok"),
 ]
 
 LEGEND = """\
@@ -65,6 +69,7 @@ LEGEND = """\
 | out tok/s | Aggregate output token throughput across all users (capacity) |
 | req/s | Completed requests per second (capacity in user terms) |
 | run dur | Wall-clock duration of that benchmark run, seconds |
+| in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
 | SLO | PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on `colocated` rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms |
 
 Multi-turn results (conversation replay with growing history — prefix-cache
@@ -112,6 +117,8 @@ def fmt(key, value):
         return "—"
     if key == "duration":
         return f"{value:,.0f}s"
+    if key in ("total_input_tokens", "total_output_tokens"):
+        return f"{int(value):,}"
     if isinstance(value, float):
         return f"{value:,.1f}"
     return str(value)
@@ -129,53 +136,82 @@ def slo_verdict(scenario, tier, data):
     return "PASS" if ok else "FAIL"
 
 
-def render(runs):
-    out = ["# Benchmark results", "", LEGEND]
-    for run in runs:
-        meta = run["meta"]
-        out.append(f"\n## {run['run_id']}\n")
+def run_section(run):
+    """One run's report body (returned as a list of markdown lines)."""
+    out = []
+    meta = run["meta"]
+    out.append(
+        f"profile: **{meta.get('profile_name', '?')}** | config: `{run['config_id']}` | "
+        f"git: `{str(meta.get('repo_git_sha', '?'))[:10]}`"
+        f"{' (dirty)' if meta.get('repo_git_dirty') else ''} | "
+        f"host: {meta.get('host', {}).get('instance_type', '?')} "
+        f"({meta.get('host', {}).get('gpu', '?')}) | "
+        f"image: {meta.get('vllm_image', '?')} | "
+        f"first run: {meta.get('timestamp_utc', '?')}"
+    )
+    if run["results"]:
+        total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
+        total_in = sum(r["data"].get("total_input_tokens") or 0 for r in run["results"])
+        total_out = sum(r["data"].get("total_output_tokens") or 0 for r in run["results"])
+        headers = ["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS] + ["SLO"]
+        out.append("\n| " + " | ".join(headers) + " |")
+        out.append("|" + "---|" * len(headers))
+        ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
+        for r in ordered:
+            row = [r["scenario"], r["name"], r["tier"]]
+            row += [fmt(key, r["data"].get(key)) for key, _ in METRIC_COLUMNS]
+            row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
+            out.append("| " + " | ".join(row) + " |")
         out.append(
-            f"profile: **{meta.get('profile_name', '?')}** | config: `{run['config_id']}` | "
-            f"git: `{str(meta.get('repo_git_sha', '?'))[:10]}`"
-            f"{' (dirty)' if meta.get('repo_git_dirty') else ''} | "
-            f"host: {meta.get('host', {}).get('instance_type', '?')} "
-            f"({meta.get('host', {}).get('gpu', '?')}) | "
-            f"image: {meta.get('vllm_image', '?')} | "
-            f"first run: {meta.get('timestamp_utc', '?')}"
+            f"\ntotals: {total_dur / 60:,.1f} min of benchmarked load across "
+            f"{len(run['results'])} runs | {int(total_in):,} prompt tokens in | "
+            f"{int(total_out):,} tokens generated"
         )
-        if run["results"]:
-            total_dur = sum(r["data"].get("duration") or 0 for r in run["results"])
-            headers = ["scenario", "model", "users"] + [label for _, label in METRIC_COLUMNS] + ["SLO"]
-            out.append("\n| " + " | ".join(headers) + " |")
-            out.append("|" + "---|" * len(headers))
-            ordered = sorted(run["results"], key=lambda r: (r["scenario"], r["name"], int(r["tier"])))
-            for r in ordered:
-                row = [r["scenario"], r["name"], r["tier"]]
-                row += [fmt(key, r["data"].get(key)) for key, _ in METRIC_COLUMNS]
-                row.append(slo_verdict(r["scenario"], r["tier"], r["data"]))
-                out.append("| " + " | ".join(row) + " |")
-            out.append(f"\ntotal benchmarked load time: {total_dur / 60:,.1f} min "
-                       f"across {len(run['results'])} runs")
-        else:
-            out.append("\n_(no parsed result files)_")
-        if run["multiturn"]:
-            out.append(f"\nmulti-turn reports: {', '.join('`' + m + '`' for m in run['multiturn'])}")
+        run["totals"] = (total_dur, total_in, total_out)
+    else:
+        out.append("\n_(no parsed result files)_")
+        run["totals"] = (0, 0, 0)
+    if run["multiturn"]:
+        out.append(f"\nmulti-turn reports: {', '.join('`' + m + '`' for m in run['multiturn'])}")
+    return out
 
-    # Warn when the same profile name maps to different applied configs.
+
+def render(runs):
+    stdout_parts = []
+    for run in runs:
+        section = run_section(run)
+        report = "\n".join([f"# {run['run_id']}", "", LEGEND, ""] + section) + "\n"
+        per_run_path = RESULTS_DIR / run["run_id"] / "README.md"
+        per_run_path.write_text(report)
+        stdout_parts.append("\n".join([f"\n## {run['run_id']}\n"] + section))
+        print(f"(report written to {per_run_path})", file=sys.stderr)
+
+    # Index: one line per run, plus the cross-config warnings.
+    index = ["# Benchmark results index", "",
+             "Per-run reports (tables + legend) live in each run's own `README.md`.", "",
+             "| run | profile | config | runs | load time | tokens in/out |", "|---|---|---|---|---|---|"]
+    for run in runs:
+        dur, tin, tout = run["totals"]
+        index.append(
+            f"| [{run['run_id']}]({run['run_id']}/README.md) | {run['meta'].get('profile_name', '?')} "
+            f"| `{run['config_id']}` | {len(run['results'])} | {dur / 60:,.1f} min "
+            f"| {int(tin):,} / {int(tout):,} |"
+        )
     by_name = {}
     for run in runs:
         by_name.setdefault(run["meta"].get("profile_name", "?"), set()).add(run["config_id"])
+    warnings = []
     for name, configs in sorted(by_name.items()):
         if len(configs) > 1:
-            out.append(
+            warnings.append(
                 f"\n**WARNING**: profile '{name}' appears with {len(configs)} different applied "
                 f"configs ({', '.join(sorted(configs))}) — do not compare across them."
             )
+    index += warnings
+    INDEX_PATH.write_text("\n".join(index) + "\n")
 
-    text = "\n".join(out) + "\n"
-    print(text)
-    REPORT_PATH.write_text(text)
-    print(f"(report written to {REPORT_PATH})", file=sys.stderr)
+    print("\n".join(["# Benchmark results", "", LEGEND] + stdout_parts + warnings))
+    print(f"(index written to {INDEX_PATH})", file=sys.stderr)
 
 
 if __name__ == "__main__":
