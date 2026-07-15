@@ -75,12 +75,14 @@ LEGEND = """\
 
 **Multi-turn conversations table** (conversation replay with growing history —
 prefix-cache and KV-offloading behavior): parsed from the harness reports.
-Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —
-the harness's report truncates mid percentiles when piped, so mean is the
-stable center),
-input tokens per request mean/max (shows how deep conversations grew), and
-approximate total tokens in/out (count × mean — the harness reports
-distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
+Columns: req/s (completed turns per second); TTFT/TPOT/e2e mean/tail in ms
+(tail = p99, falling back to p90 or max when small runs omit percentiles);
+input tokens per request mean/max (how deep conversations grew); approximate
+total tokens in/out (count × mean); **ext cache hit** — external (offloaded)
+prefix-cache hit rate for that tier (Δhits/Δqueries vs the previous snapshot;
+requires KV offloading); **KV stored/loaded** — GB pushed to / pulled back
+from CPU RAM during that tier (per-tier delta vs the c0 baseline snapshot).
+Raw reports remain in `multiturn-*.txt`.
 """
 
 # Working SLOs from docs/benchmarking.md (co-located scenario is what counts).
@@ -236,7 +238,9 @@ def load_runs(only=None):
             multiturn.append({"file": p.name,
                               "name": fm.group("name") if fm else p.name,
                               "clients": fm.group("clients") if fm else "?",
-                              "stats": parse_multiturn(p)})
+                              "stats": parse_multiturn(p),
+                              "counters": parse_offload_counters(
+                                  p.with_name(p.name[:-4] + ".metrics.txt"))})
         runs.append({"run_id": run_dir.name, "meta": meta, "config_id": config_id,
                      "results": results, "multiturn": multiturn,
                      "kvpool": parse_kvpool(run_dir)})
@@ -287,6 +291,26 @@ def kv_mode(extra_args):
 KVPOOL_TOKENS_RE = re.compile(r"GPU KV cache size:\s*([\d,]+)\s*tokens")
 KVPOOL_CONC_RE = re.compile(r"Maximum concurrency for\s*([\d,]+)\s*tokens per request:\s*([\d.]+)x")
 KVPOOL_GIB_RE = re.compile(r"Available KV cache memory:\s*([\d.]+)\s*GiB")
+
+
+OFFLOAD_COUNTERS = {
+    "stored": r"vllm:kv_offload_store_bytes_total\{[^}]*\}\s+([\d.e+]+)",
+    "loaded": r"vllm:kv_offload_load_bytes_total\{[^}]*\}\s+([\d.e+]+)",
+    "hits": r"vllm:external_prefix_cache_hits_total\{[^}]*\}\s+([\d.e+]+)",
+    "queries": r"vllm:external_prefix_cache_queries_total\{[^}]*\}\s+([\d.e+]+)",
+}
+
+
+def parse_offload_counters(path):
+    """Cumulative offload/external-cache counters from a /metrics snapshot."""
+    if not path.exists():
+        return None
+    text = path.read_text(errors="replace")
+    out = {}
+    for key, pattern in OFFLOAD_COUNTERS.items():
+        if m := re.search(pattern, text):
+            out[key] = float(m.group(1))
+    return out or None
 
 
 def parse_kvpool(run_dir):
@@ -398,20 +422,28 @@ def run_section(run):
         out.append("\n_(no parsed result files)_")
         run["totals"] = (0, 0, 0)
     parsed = [m for m in run["multiturn"] if m["stats"]]
-    unparsed = [m for m in run["multiturn"] if not m["stats"]]
+    unparsed = [m for m in run["multiturn"] if not m["stats"] and not m["file"].endswith("-c0.metrics.txt")]
     if parsed:
+        parsed.sort(key=lambda m: (m["name"], int(m["clients"]) if str(m["clients"]).isdigit() else 0))
+        # cumulative counters -> per-tier deltas, using the c0 baseline snapshot
+        baselines = {m["name"]: m["counters"] for m in run["multiturn"]
+                     if m["file"].endswith("-c0.metrics.txt") and m["counters"]}
         out.append("\n### Multi-turn conversations\n")
-        out.append("| instance | clients | req/s | TTFT mean/p99 | TPOT mean/p99 | e2e mean/p99 | input tok mean/max | ≈tok in/out total | runtime |")
-        out.append("|---|---|---|---|---|---|---|---|---|")
+        out.append("| instance | clients | req/s | TTFT mean/tail | TPOT mean/tail | e2e mean/tail "
+                   "| input tok mean/max | ≈tok in/out total | ext cache hit | KV stored/loaded | runtime |")
+        out.append("|---|---|---|---|---|---|---|---|---|---|---|")
+        prev_counters = dict(baselines)
         for m in parsed:
             s = m["stats"]
             r = s["rows"]
 
-            def pair(label, a="mean", b="p99"):
+            def pair(label):
                 row = r.get(label) or {}
-                fa, fb = row.get(a), row.get(b)
-                left = f"{fa:,.0f}" if fa is not None else "—"
-                right = f"{fb:,.0f}" if fb is not None else "—"
+                mean = row.get("mean")
+                # small runs: the harness's table omits 99% — fall back p99 -> p90 -> max
+                tail = row.get("p99", row.get("p90", row.get("max")))
+                left = f"{mean:,.0f}" if mean is not None else "—"
+                right = f"{tail:,.0f}" if tail is not None else "—"
                 return f"{left} / {right}"
 
             itok = r.get("input_num_tokens")
@@ -419,10 +451,24 @@ def run_section(run):
             tin = f"{int(itok['count'] * itok['mean']):,}" if itok else "—"
             tout = f"{int(otok['count'] * otok['mean']):,}" if otok else "—"
             imeanmax = f"{itok['mean']:,.0f} / {itok['max']:,.0f}" if itok else "—"
+
+            hit, kv = "—", "—"
+            cur, base = m["counters"], prev_counters.get(m["name"])
+            if cur and base:
+                dq = cur.get("queries", 0) - base.get("queries", 0)
+                dh = cur.get("hits", 0) - base.get("hits", 0)
+                ds = cur.get("stored", 0) - base.get("stored", 0)
+                dl = cur.get("loaded", 0) - base.get("loaded", 0)
+                if dq > 0:
+                    hit = f"{dh / dq:.1%}"
+                if "stored" in cur or "loaded" in cur:
+                    kv = f"{ds / 1e9:.2f} / {dl / 1e9:.2f} GB"
+            if cur:
+                prev_counters[m["name"]] = cur
             out.append(
                 f"| {m['name']} | {m['clients']} | {s.get('requests_per_sec', 0):.2f} "
                 f"| {pair('ttft_ms')} | {pair('tpot_ms')} | {pair('latency_ms')} "
-                f"| {imeanmax} | {tin} / {tout} | {s.get('runtime_sec', 0):,.0f}s |"
+                f"| {imeanmax} | {tin} / {tout} | {hit} | {kv} | {s.get('runtime_sec', 0):,.0f}s |"
             )
     if unparsed:
         out.append("\nunparsed multi-turn files (failed or unexpected format): "

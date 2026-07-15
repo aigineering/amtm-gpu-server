@@ -34,12 +34,14 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 </table>
 <p><strong>Multi-turn conversations table</strong> (conversation replay with growing history —</p>
 <p>prefix-cache and KV-offloading behavior): parsed from the harness reports.</p>
-<p>Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —</p>
-<p>the harness's report truncates mid percentiles when piped, so mean is the</p>
-<p>stable center),</p>
-<p>input tokens per request mean/max (shows how deep conversations grew), and</p>
-<p>approximate total tokens in/out (count × mean — the harness reports</p>
-<p>distributions, not exact sums). Raw reports remain in <code>multiturn-*.txt</code>.</p>
+<p>Columns: req/s (completed turns per second); TTFT/TPOT/e2e mean/tail in ms</p>
+<p>(tail = p99, falling back to p90 or max when small runs omit percentiles);</p>
+<p>input tokens per request mean/max (how deep conversations grew); approximate</p>
+<p>total tokens in/out (count × mean); <strong>ext cache hit</strong> — external (offloaded)</p>
+<p>prefix-cache hit rate for that tier (Δhits/Δqueries vs the previous snapshot;</p>
+<p>requires KV offloading); <strong>KV stored/loaded</strong> — GB pushed to / pulled back</p>
+<p>from CPU RAM during that tier (per-tier delta vs the c0 baseline snapshot).</p>
+<p>Raw reports remain in <code>multiturn-*.txt</code>.</p>
 <p>profile: <strong>baseline</strong> | config: <code>2b00c31a85</code> | git: <code>ca060db65a</code> (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z</p>
 <h3>Configuration</h3>
 <table>
@@ -87,7 +89,7 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 <p>totals: 20.0 min of benchmarked load across 32 runs | 4,647,702 prompt tokens in | 670,329 tokens generated</p>
 <h3>Multi-turn conversations</h3>
 <table>
-<tr><th>instance</th><th>clients</th><th>req/s</th><th>TTFT mean/p99</th><th>TPOT mean/p99</th><th>e2e mean/p99</th><th>input tok mean/max</th><th>≈tok in/out total</th><th>runtime</th></tr>
-<tr><td>gemma</td><td>20</td><td>5.08</td><td>234 / 1,084</td><td>37 / 47</td><td>3,876 / 5,299</td><td>2,022 / 4,317</td><td>630,810 / 30,997</td><td>61s</td></tr>
-<tr><td>llama</td><td>20</td><td>9.66</td><td>162 / 682</td><td>19 / 28</td><td>2,038 / 3,275</td><td>2,059 / 4,424</td><td>673,394 / 32,487</td><td>34s</td></tr>
+<tr><th>instance</th><th>clients</th><th>req/s</th><th>TTFT mean/tail</th><th>TPOT mean/tail</th><th>e2e mean/tail</th><th>input tok mean/max</th><th>≈tok in/out total</th><th>ext cache hit</th><th>KV stored/loaded</th><th>runtime</th></tr>
+<tr><td>gemma</td><td>20</td><td>5.08</td><td>234 / 1,084</td><td>37 / 47</td><td>3,876 / 5,299</td><td>2,022 / 4,317</td><td>630,810 / 30,997</td><td>—</td><td>—</td><td>61s</td></tr>
+<tr><td>llama</td><td>20</td><td>9.66</td><td>162 / 682</td><td>19 / 28</td><td>2,038 / 3,275</td><td>2,059 / 4,424</td><td>673,394 / 32,487</td><td>—</td><td>—</td><td>34s</td></tr>
 </table></body></html>

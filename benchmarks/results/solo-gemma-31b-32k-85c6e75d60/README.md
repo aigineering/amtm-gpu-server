@@ -28,12 +28,14 @@
 
 **Multi-turn conversations table** (conversation replay with growing history —
 prefix-cache and KV-offloading behavior): parsed from the harness reports.
-Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —
-the harness's report truncates mid percentiles when piped, so mean is the
-stable center),
-input tokens per request mean/max (shows how deep conversations grew), and
-approximate total tokens in/out (count × mean — the harness reports
-distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
+Columns: req/s (completed turns per second); TTFT/TPOT/e2e mean/tail in ms
+(tail = p99, falling back to p90 or max when small runs omit percentiles);
+input tokens per request mean/max (how deep conversations grew); approximate
+total tokens in/out (count × mean); **ext cache hit** — external (offloaded)
+prefix-cache hit rate for that tier (Δhits/Δqueries vs the previous snapshot;
+requires KV offloading); **KV stored/loaded** — GB pushed to / pulled back
+from CPU RAM during that tier (per-tier delta vs the c0 baseline snapshot).
+Raw reports remain in `multiturn-*.txt`.
 
 
 profile: **solo-gemma-31b-32k** | config: `85c6e75d60` | git: `eba2cf6f5a` | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T18:38:22Z
@@ -63,6 +65,6 @@ totals: 50.4 min of benchmarked load across 8 runs | 4,185,103 prompt tokens in 
 
 ### Multi-turn conversations
 
-| instance | clients | req/s | TTFT mean/p99 | TPOT mean/p99 | e2e mean/p99 | input tok mean/max | ≈tok in/out total | runtime |
-|---|---|---|---|---|---|---|---|---|
-| gemma-31b | 20 | 1.06 | 2,226 / 8,710 | 167 / 227 | 18,656 / 27,209 | 2,029 / 4,428 | 634,942 / 31,077 | 295s |
+| instance | clients | req/s | TTFT mean/tail | TPOT mean/tail | e2e mean/tail | input tok mean/max | ≈tok in/out total | ext cache hit | KV stored/loaded | runtime |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemma-31b | 20 | 1.06 | 2,226 / 8,710 | 167 / 227 | 18,656 / 27,209 | 2,029 / 4,428 | 634,942 / 31,077 | — | — | 295s |

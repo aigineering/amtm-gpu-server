@@ -34,10 +34,28 @@
       {{ item | int * benchmark_multi_turn_conversations_per_client | int }}
   loop: "{{ benchmark_multi_turn_tiers }}"
 
+# Baseline metrics snapshot BEFORE any multi-turn load: offload/cache counters
+# are cumulative since engine start, so per-tier deltas need a clean zero point
+# (earlier scenarios also move these counters).
+- name: "Multi-turn: baseline /metrics snapshot (c0)"
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ item.port }}/metrics >
+      {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c0.metrics.txt
+    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.name }}-c0.metrics.txt"
+  changed_when: true
+  loop: "{{ vllm_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # Runs inside the serving image (has aiohttp/numpy/transformers; pandas and
 # xlsxwriter come from the pylibs dir via PYTHONPATH). The harness prints its
 # statistics table to stdout, captured per instance and tier.
-- name: "Multi-turn: run each endpoint at each tier"
+# The /metrics snapshot is taken INSIDE the same shell, immediately after the
+# harness exits — counters are cumulative, so per-tier deltas are only valid
+# if each tier's snapshot is captured before the next tier runs (a separate
+# post-loop snapshot task produced four identical scrapes of the final state).
+- name: "Multi-turn: run each endpoint at each tier (+ immediate metrics snapshot)"
   ansible.builtin.shell: >-
     docker run --rm --network host
     -v /opt/models:/models:ro
@@ -53,7 +71,11 @@
     --num-clients {{ item.0 }}
     --max-active-conversations {{ item.0 | int * benchmark_multi_turn_conversations_per_client | int }}
     {% if vllm_api_key | length > 0 %}--api-key {{ vllm_api_key }}{% endif %}
-    > {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.txt 2>&1
+    > {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.txt 2>&1;
+    rc=$?;
+    curl -s http://localhost:{{ item.1.port }}/metrics >
+    {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt;
+    exit $rc
   args:
     # Resumability: the captured output is the completion marker. NOTE: a
     # failed harness run leaves its error text here too — delete the file to
@@ -62,19 +84,6 @@
   changed_when: true
   async: 7200
   poll: 15
-  loop: "{{ benchmark_multi_turn_tiers | product(vllm_instances) | list }}"
-  loop_control:
-    label: "{{ item.1.name }} c{{ item.0 }}"
-
-- name: "Multi-turn: snapshot /metrics per endpoint and tier"
-  ansible.builtin.shell:
-    cmd: >-
-      curl -s http://localhost:{{ item.1.port }}/metrics >
-      {{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt
-    # Don't re-scrape on resume — counters only grow, and overwriting produces
-    # endless churn in the git-tracked results.
-    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.1.name }}-c{{ item.0 }}.metrics.txt"
-  changed_when: true
   loop: "{{ benchmark_multi_turn_tiers | product(vllm_instances) | list }}"
   loop_control:
     label: "{{ item.1.name }} c{{ item.0 }}"

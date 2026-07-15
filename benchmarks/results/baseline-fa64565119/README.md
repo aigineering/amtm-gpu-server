@@ -28,12 +28,14 @@
 
 **Multi-turn conversations table** (conversation replay with growing history —
 prefix-cache and KV-offloading behavior): parsed from the harness reports.
-Columns: req/s (completed turns per second), TTFT/TPOT/e2e mean/p99 (ms —
-the harness's report truncates mid percentiles when piped, so mean is the
-stable center),
-input tokens per request mean/max (shows how deep conversations grew), and
-approximate total tokens in/out (count × mean — the harness reports
-distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
+Columns: req/s (completed turns per second); TTFT/TPOT/e2e mean/tail in ms
+(tail = p99, falling back to p90 or max when small runs omit percentiles);
+input tokens per request mean/max (how deep conversations grew); approximate
+total tokens in/out (count × mean); **ext cache hit** — external (offloaded)
+prefix-cache hit rate for that tier (Δhits/Δqueries vs the previous snapshot;
+requires KV offloading); **KV stored/loaded** — GB pushed to / pulled back
+from CPU RAM during that tier (per-tier delta vs the c0 baseline snapshot).
+Raw reports remain in `multiturn-*.txt`.
 
 
 profile: **baseline** | config: `2b00c31a85` | git: `ca060db65a` (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z
@@ -88,7 +90,7 @@ totals: 20.0 min of benchmarked load across 32 runs | 4,647,702 prompt tokens in
 
 ### Multi-turn conversations
 
-| instance | clients | req/s | TTFT mean/p99 | TPOT mean/p99 | e2e mean/p99 | input tok mean/max | ≈tok in/out total | runtime |
-|---|---|---|---|---|---|---|---|---|
-| gemma | 20 | 5.08 | 234 / 1,084 | 37 / 47 | 3,876 / 5,299 | 2,022 / 4,317 | 630,810 / 30,997 | 61s |
-| llama | 20 | 9.66 | 162 / 682 | 19 / 28 | 2,038 / 3,275 | 2,059 / 4,424 | 673,394 / 32,487 | 34s |
+| instance | clients | req/s | TTFT mean/tail | TPOT mean/tail | e2e mean/tail | input tok mean/max | ≈tok in/out total | ext cache hit | KV stored/loaded | runtime |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemma | 20 | 5.08 | 234 / 1,084 | 37 / 47 | 3,876 / 5,299 | 2,022 / 4,317 | 630,810 / 30,997 | — | — | 61s |
+| llama | 20 | 9.66 | 162 / 682 | 19 / 28 | 2,038 / 3,275 | 2,059 / 4,424 | 673,394 / 32,487 | — | — | 34s |

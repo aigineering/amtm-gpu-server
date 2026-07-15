@@ -152,7 +152,7 @@ serving logs — every vLLM startup prints the exact pair as
 | Llama 3.2 3B | ~112 KB (measured) | ~1.1 GiB | ~3.5 GiB |
 | Llama 3.1 8B | ~128 KB (formula) | ~1.25 GiB | ~4.1 GiB |
 | Gemma 4 31B | ~125 KB (measured) | ~1.2 GiB | ~4.0 GiB |
-| Gemma 4 26B-A4B | TBD (read from stage-1 startup logs) | — | — |
+| Gemma 4 26B-A4B | ~106 KB (measured) | ~1.0 GiB | ~3.5 GiB |
 
 Per **architecture**, not per quantization: quantization compresses weights,
 never the KV cache (`kv_cache_dtype: auto` = fp16 for all catalog models — an
