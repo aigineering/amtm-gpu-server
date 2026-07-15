@@ -36,7 +36,7 @@ approximate total tokens in/out (count × mean — the harness reports
 distributions, not exact sums). Raw reports remain in `multiturn-*.txt`.
 
 
-profile: **baseline** | config: `56c9afa477` | git: `ca060db65a` (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z
+profile: **baseline** | config: `2b00c31a85` | git: `ca060db65a` (dirty) | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-15T17:50:39Z
 
 ### Configuration
 

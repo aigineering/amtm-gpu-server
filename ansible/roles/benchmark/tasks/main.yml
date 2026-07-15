@@ -38,10 +38,20 @@
 # Any config change → new hash → new directory → full re-run; one directory
 # can never mix differing configs. To force a redo, delete the run directory
 # on the host.
+#
+# The API key is REDACTED before hashing: it doesn't affect performance, and
+# hashing it would invalidate all benchmark history on every key rotation
+# (bit us when the CI secret differed from the local vault). This also makes
+# the directory suffix equal the renderer's config id, which hashes the same
+# redacted snapshot.
 - name: Compose the run id
   ansible.builtin.set_fact:
     benchmark_run_id: >-
-      {{ profile_name }}-{{ (benchmark_compose_snapshot.content | b64decode | hash('sha256'))[:10] }}
+      {{ profile_name }}-{{ ((benchmark_compose_snapshot.content | b64decode
+          | replace(vllm_api_key, 'REDACTED')
+          if vllm_api_key | length > 0
+          else benchmark_compose_snapshot.content | b64decode)
+         | hash('sha256'))[:10] }}
     benchmark_repo_git_sha: "{{ lookup('pipe', 'git -C ' ~ playbook_dir ~ ' rev-parse HEAD') }}"
     benchmark_repo_git_dirty: "{{ (lookup('pipe', 'git -C ' ~ playbook_dir ~ ' status --porcelain') | length) > 0 }}"
 

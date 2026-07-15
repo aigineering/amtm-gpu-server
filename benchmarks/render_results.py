@@ -17,6 +17,7 @@ Usage:
 Stdlib only — no dependencies.
 """
 
+import base64
 import hashlib
 import json
 import re
@@ -207,8 +208,11 @@ def load_runs(only=None):
             continue
         meta_path = run_dir / "metadata.json"
         meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        # Hash the DECODED (and already key-redacted) compose text — same
+        # digest the benchmark role uses for the run directory suffix.
         compose_b64 = meta.get("compose_file_b64", "")
-        config_id = hashlib.sha256(compose_b64.encode()).hexdigest()[:10] if compose_b64 else "unknown"
+        config_id = (hashlib.sha256(base64.b64decode(compose_b64)).hexdigest()[:10]
+                     if compose_b64 else "unknown")
         results = []
         for f in sorted(run_dir.glob("*.json")):
             m = FILENAME_RE.match(f.name)
