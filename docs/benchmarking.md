@@ -29,8 +29,9 @@ Workload characteristics being modeled:
    **both endpoints simultaneously**. The delta vs scenario 1 quantifies the
    cost of sharing the GPU; this is the run that validates the two-models story
    for the client.
-3. **Concurrency sweep** — scenarios 1 and 2 repeated across concurrency levels
-   (e.g. 1, 2, 4, 8, 16, 32 simulated users) to find where latency SLOs break.
+3. **Concurrency sweep** — scenarios 1 and 2 repeated at the three agreed user
+   tiers — **5, 20 and 50 concurrent users** — plus a single-user reference
+   point for the curve's floor. The tiers are where SLO pass/fail is judged.
 4. **Context-length stress** — long-input requests near `max_model_len`,
    because long chat histories are where KV cache pressure and chunked-prefill
    behavior actually show up.
@@ -96,12 +97,36 @@ real chat traffic. Acceptable for v0.2 (relative comparisons between profiles
 are still valid); a custom multi-turn driver is the known fix if cache behavior
 becomes the question being asked.
 
-### Open question: client-domain dataset
+### Planned: client-domain dataset
 
-Benchmark prompts should eventually reflect the client's actual language and
-domain — tokenizer efficiency differs across languages, which shifts
-token-based metrics. Parked until we know the production traffic profile; the
-harness accepts custom dataset files, so this slots in without redesign.
+Agreed direction (2026-07-15): ShareGPT is the starting point, and a custom
+dataset tailored to the client's needs will be added later — their actual
+language and domain shift tokenizer efficiency and therefore every token-based
+metric. The harness accepts custom dataset files, so this slots in without
+redesign; results must record which dataset produced them (see below) so
+ShareGPT-era numbers are never compared against client-dataset numbers by
+accident.
+
+## Result record: self-describing and reproducible
+
+Requirement (2026-07-15): the client will tweak parameters over time, so every
+result must embed **the actual configuration that produced it** — enough to
+reproduce the run without archaeology. Each run's JSON carries:
+
+- **Profile snapshot** — the fully resolved `vllm_instances` used for the run
+  (models, quantization, `gpu_memory_utilization`, `max_model_len`, all
+  `extra_args`), captured from what was *actually applied* on the host, not
+  just the profile file's name — protecting against drift between the file and
+  hand-tweaked reality. Plus the profile name as a label.
+- **Code and image versions** — repo git SHA (and a dirty-tree flag), vLLM
+  image tag + digest, model repo revisions.
+- **Workload definition** — scenario, dataset name/version, concurrency tier,
+  full harness command line and harness version.
+- **Host fingerprint** — instance type, GPU model, driver version.
+- **Timestamp** and the raw harness metrics output.
+
+The comparison renderer treats any two runs whose profile snapshots differ as
+different configurations, even if the profile *name* is the same.
 
 ## Decisions log
 
@@ -111,6 +136,9 @@ harness accepts custom dataset files, so this slots in without redesign.
 | 2026-07-15 | Harness: `vllm bench serve`, run on-host against localhost | Ships inside the deployed vLLM image (versioned together, works on the offline customer box); tunnel/SSH overhead would skew latency at high concurrency |
 | 2026-07-15 | Results git-tracked in repo (JSON per run + comparison renderer) | History and diffs for free; external store only pays off at high run volume |
 | 2026-07-15 | ShareGPT primary + synthetic secondary datasets | Realistic conversational distribution for headline numbers; controlled lengths for sweeps and context stress |
+| 2026-07-15 | Concurrency tiers: 5 / 20 / 50 users (+1-user floor) | The three cases to test per Simon; SLO pass/fail judged at each tier |
+| 2026-07-15 | Client-tailored dataset planned as follow-up to ShareGPT | Client's language/domain shifts token-based metrics; harness supports custom files |
+| 2026-07-15 | Every result embeds its resolved profile + versions (see "Result record") | Client will tweak params; results must be reproducible and never silently compared across differing configs |
 
 ## Considered and rejected (for now)
 
@@ -129,7 +157,7 @@ harness accepts custom dataset files, so this slots in without redesign.
 
 ## Open items
 
-- Confirm SLO targets and expected concurrent-user count with the client.
-- Client-domain/language dataset (see above).
+- Confirm SLO targets with the client (concurrency tiers now set: 5/20/50).
+- Client-domain/language dataset — planned, needs the client's traffic profile.
 - How the ShareGPT file gets onto the box (fetch playbook vs git-tracked
   subset) — decide at implementation.
