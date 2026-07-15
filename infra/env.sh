@@ -11,19 +11,27 @@
 #   infra/env.sh tunnel                forward the vLLM ports (8001, 8002) to localhost
 #   infra/env.sh down                  tear EVERYTHING down, including the models volume
 #
-# Overridables: AWS_REGION (us-east-1), AZ (us-east-1a), INSTANCE_TYPE (g6e.xlarge),
+# Overridables: AWS_REGION (us-east-1), AZ (us-east-1c), INSTANCE_TYPE (g6e.2xlarge),
 # AWS_ACCOUNT (088070740738 — every command refuses to run against any other account),
 # TUNNEL_PORTS ("8001 8002")
+#
+# L40S capacity is scarce and per-AZ, so the models volume is one stack PER AZ:
+# hop zones with e.g. `AZ=us-east-1b infra/env.sh reset` — the first visit to a
+# new AZ creates a blank volume there (re-run fetch-models once), and every AZ
+# you've visited keeps its warm model cache (~$8/mo per 100GB volume) until 'down'.
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
 AZ="${AZ:-us-east-1c}"
-INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.xlarge}"
+INSTANCE_TYPE="${INSTANCE_TYPE:-g6e.2xlarge}"
 EXPECTED_ACCOUNT="${AWS_ACCOUNT:-088070740738}"
 
 PREFIX="gpu-vllm-test"
 PERSISTENT_STACK="${PREFIX}-persistent"
-MODELS_STACK="${PREFIX}-models"
+# One models stack PER AZ: L40S capacity comes and goes per zone, so hopping
+# AZs (AZ=us-east-1b infra/env.sh reset) keeps a warm model cache in each zone
+# instead of forcing a re-fetch. 'down' sweeps the models stacks of ALL AZs.
+MODELS_STACK="${PREFIX}-models-${AZ}"
 INSTANCE_STACK="${PREFIX}-instance"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -94,17 +102,16 @@ deploy_models() {
     --parameter-overrides "AvailabilityZone=$AZ"
 }
 
-# The instance must land in the same AZ as the existing models volume, even if
-# $AZ was overridden differently for this invocation.
-models_az() {
-  local az; az=$(stack_output "$MODELS_STACK" AvailabilityZone)
-  echo "${az:-$AZ}"
+all_models_stacks() {
+  aws cloudformation describe-stacks \
+    --query "Stacks[?starts_with(StackName, '${PREFIX}-models-')].StackName" \
+    --output text 2>/dev/null | tr '\t' '\n' | sed '/^$/d'
 }
 
 deploy_instance() {
   local vpc az subnet ami
   vpc=$(default_vpc)
-  az=$(models_az)
+  az="$AZ"
   subnet=$(subnet_in_az "$vpc" "$az")
   [ "$subnet" != "None" ] || { echo "no default subnet in $az" >&2; exit 1; }
   ami=$(latest_rhel9_ami)
@@ -148,8 +155,10 @@ cmd_reset() {
   delete_stack "$INSTANCE_STACK"
   if $wipe; then
     delete_stack "$MODELS_STACK"
-    deploy_models
   fi
+  # Idempotent — also creates this AZ's models stack on a first visit to a new
+  # AZ (AZ=us-east-1b infra/env.sh reset), where the fresh volume starts blank.
+  deploy_models
   deploy_instance
   if $wipe; then
     echo ">> fresh instance + blank models volume, same IP: $(public_ip)"
@@ -160,12 +169,16 @@ cmd_reset() {
 }
 
 cmd_down() {
-  echo "This deletes EVERYTHING, including the models volume (re-fetch ~20GB later)."
+  echo "This deletes EVERYTHING, including the models volumes of ALL AZs:"
+  all_models_stacks | sed 's/^/  - /'
   echo "(To keep the models, use 'reset' or 'stop' instead.)"
   read -r -p "Type 'yes' to confirm: " ans
   [ "$ans" = "yes" ] || { echo "aborted"; exit 1; }
   delete_stack "$INSTANCE_STACK"
-  delete_stack "$MODELS_STACK"
+  local s
+  for s in $(all_models_stacks); do
+    delete_stack "$s"
+  done
   delete_stack "$PERSISTENT_STACK"
   echo ">> all gone"
 }
@@ -176,9 +189,10 @@ cmd_start() { aws ec2 start-instances --instance-ids "$(instance_id)" >/dev/null
 cmd_status() {
   local iid ip state
   iid=$(instance_id); ip=$(public_ip)
-  echo "region=$REGION az=$(models_az)"
+  echo "region=$REGION az=$AZ type=$INSTANCE_TYPE"
   echo "persistent stack: $(aws cloudformation describe-stacks --stack-name "$PERSISTENT_STACK" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo absent)"
-  echo "models stack:     $(aws cloudformation describe-stacks --stack-name "$MODELS_STACK" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo absent)"
+  echo "models stacks (all AZs, current is $MODELS_STACK):"
+  all_models_stacks | sed 's/^/  - /' || true
   echo "instance stack:   $(aws cloudformation describe-stacks --stack-name "$INSTANCE_STACK" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo absent)"
   if [ -n "$iid" ]; then
     state=$(aws ec2 describe-instances --instance-ids "$iid" --query 'Reservations[0].Instances[0].State.Name' --output text 2>/dev/null || echo unknown)

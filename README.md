@@ -82,7 +82,7 @@ the full design (three CloudFormation stacks: key/SG/EIP + models volume +
 disposable instance):
 
 ```bash
-infra/env.sh up                   # g6e.xlarge (1× L40S 48GB), RHEL 9, /opt/models on EBS
+infra/env.sh up                   # g6e.2xlarge (1× L40S 48GB, 64GB RAM), RHEL 9, /opt/models on EBS
 infra/env.sh reset                # clean OS; models volume and IP kept
 infra/env.sh reset --wipe-models  # clean OS + blank models volume
 infra/env.sh down                 # full teardown, incl. models volume

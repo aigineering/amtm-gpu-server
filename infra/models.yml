@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
   gpu-vllm-setup AWS test env, models layer: ONLY the EBS volume that holds
-  /opt/models. In its own stack so that a normal teardown (env.sh down) never
-  deletes fetched models. Deleted only by 'env.sh down --all' or recreated by
-  'env.sh reset --wipe-models'.
+  /opt/models. One stack per AZ (gpu-vllm-test-models-<az>) so hopping AZs for
+  L40S capacity keeps a warm model cache in each zone. A zone's volume is
+  destroyed only by 'env.sh reset --wipe-models' (current AZ) or 'env.sh down'
+  (all AZs).
 
 Parameters:
   AvailabilityZone:

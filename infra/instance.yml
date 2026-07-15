@@ -10,7 +10,9 @@ Parameters:
     Default: gpu-vllm-test-persistent
   ModelsStackName:
     Type: String
-    Default: gpu-vllm-test-models
+    Description: >-
+      Per-AZ models stack (gpu-vllm-test-models-<az>), passed by infra/env.sh —
+      must match the AZ of SubnetId.
   AmiId:
     Type: AWS::EC2::Image::Id
     Description: RHEL 9 x86_64 AMI (looked up by infra/env.sh)
