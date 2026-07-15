@@ -21,13 +21,16 @@
   loop_control:
     label: "{{ item.name }}"
 
+# curl CLI, not the uri module: uri goes through the target's Python ssl
+# stack, which intermittently fails with "[ASN1: NOT_ENOUGH_DATA]" (see the
+# nvidia_driver role) — it reported "unreachable" on a host whose libcurl
+# (which the actual downloads use) reaches HF fine.
 - name: Check whether Hugging Face Hub is reachable from this host
-  ansible.builtin.uri:
-    url: "https://huggingface.co"
-    method: GET
-    timeout: 10
-    status_code: [200, 301, 302]
+  ansible.builtin.command: >-
+    curl -fsSL --max-time 10 -o /dev/null https://huggingface.co
   register: hf_reachability_check
+  changed_when: false
+  check_mode: false
   failed_when: false
 
 - name: Fail clearly if Hugging Face Hub is not reachable
@@ -36,7 +39,7 @@
       This host cannot reach huggingface.co. This server has no internet access by
       default — confirm with the customer's IT team that the temporary egress window
       is open, then re-run playbooks/fetch-models.yml. See docs/model-fetching.md.
-  when: hf_reachability_check.status | default(0) not in [200, 301, 302]
+  when: hf_reachability_check.rc != 0
 
 - name: Ensure python3-pip is installed
   ansible.builtin.dnf:
