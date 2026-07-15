@@ -227,6 +227,13 @@ stops/starts containers. Useful narrowing knobs (pass as `-e`):
 `benchmark_multi_turn=false` to skip the multi-turn pass. Each run leaves a
 directory under `benchmarks/results/` — commit it; the history is the point.
 
+**Campaigns: `ansible/run-campaign.sh`.** For a batch of profiles, the script
+does apply → benchmark per profile with the vault password provided **once**
+(via `ANSIBLE_VAULT_PASSWORD_FILE`, a gitignored `.vault_pass` at the repo
+root, or a single prompt): `ansible/run-campaign.sh profiles/solo-gemma-*.yml`.
+It stops at the first failure; because runs are resumable, re-running after a
+fix continues where it stopped, and it renders the comparison table at the end.
+
 **Runs are resumable.** The run id is `<profile>-<hash-of-applied-config>`,
 not a timestamp: re-running the same profile+config resumes into the same
 directory, and every result file already present is skipped — including the
