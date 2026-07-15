@@ -147,10 +147,20 @@ Measured on this deployment (fp16 KV cache; both numbers derived from the
 serving logs — every vLLM startup prints the exact pair as
 `Available KV cache memory: <GiB>` / `GPU KV cache size: <N> tokens`):
 
-| Model | KV per token | per 10k tokens | one full 32k sequence |
+| Architecture | KV per token | per 10k tokens | one full 32k sequence |
 |---|---|---|---|
-| Llama 3.2 3B AWQ | ~112 KB | ~1.1 GiB | ~3.5 GiB |
-| Gemma 4 31B AWQ | ~125 KB | ~1.2 GiB | ~4.0 GiB |
+| Llama 3.2 3B | ~112 KB (measured) | ~1.1 GiB | ~3.5 GiB |
+| Llama 3.1 8B | ~128 KB (formula) | ~1.25 GiB | ~4.1 GiB |
+| Gemma 4 31B | ~125 KB (measured) | ~1.2 GiB | ~4.0 GiB |
+| Gemma 4 26B-A4B | TBD (read from stage-1 startup logs) | — | — |
+
+Per **architecture**, not per quantization: quantization compresses weights,
+never the KV cache (`kv_cache_dtype: auto` = fp16 for all catalog models — an
+FP8 checkpoint does not imply an FP8 KV cache). So all four 31B variants share
+one row; what differs between them is weight size, and therefore how much KV
+*pool* remains — same cost per token, very different token budgets. Note also
+that KV cost and parameter count are nearly decoupled here: the 8B costs about
+the same per token as the 31B, and the 3B only ~12% less.
 
 Formula, for a new model before it's measured:
 `2 (K+V) × layers × kv_heads × head_dim × 2 bytes (fp16)` per token — but for
