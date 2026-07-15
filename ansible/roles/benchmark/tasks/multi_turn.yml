@@ -60,9 +60,13 @@
     label: "{{ item.name }}"
 
 - name: "Multi-turn: snapshot /metrics per endpoint"
-  ansible.builtin.shell: >-
-    curl -s http://localhost:{{ item.port }}/metrics >
-    {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt
+  ansible.builtin.shell:
+    cmd: >-
+      curl -s http://localhost:{{ item.port }}/metrics >
+      {{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt
+    # Don't re-scrape on resume — counters only grow, and overwriting produces
+    # endless churn in the git-tracked results.
+    creates: "{{ benchmark_run_dir }}/multiturn-{{ item.name }}-c{{ benchmark_multi_turn_clients }}.metrics.txt"
   changed_when: true
   loop: "{{ vllm_instances }}"
   loop_control:
