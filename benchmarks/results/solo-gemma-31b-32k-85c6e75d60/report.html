@@ -30,7 +30,7 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 <tr><td>req/s</td><td>Completed requests per second (capacity in user terms)</td></tr>
 <tr><td>run dur</td><td>Wall-clock duration of that benchmark run, seconds</td></tr>
 <tr><td>in tok / out tok</td><td>Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports.</td></tr>
-<tr><td>SLO</td><td>PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on <code>colocated</code> rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms</td></tr>
+<tr><td>SLO</td><td>PASS/FAIL against the working targets (docs/benchmarking.md): TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms. Evaluated on every row; read per scenario — <code>colocated</code> is the binding product judgment, <code>solo</code> is a model's standalone ceiling, and <code>context</code>/<code>contextpair</code> failing at high tiers is the expected capacity cliff (worst-case probe), not a defect</td></tr>
 </table>
 <p><strong>Multi-turn conversations table</strong> (conversation replay with growing history —</p>
 <p>prefix-cache and KV-offloading behavior): parsed from the harness reports.</p>
@@ -50,14 +50,14 @@ h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
 <p>served (observed): <code>gemma-31b</code> = gemma-4-31b-it-awq-4bit</p>
 <table>
 <tr><th>scenario</th><th>model</th><th>users</th><th>TTFT p50</th><th>TTFT p95</th><th>TTFT p99</th><th>ITL p95</th><th>TPOT p95</th><th>E2E p95</th><th>out tok/s</th><th>req/s</th><th>run dur</th><th>in tok</th><th>out tok</th><th>SLO</th></tr>
-<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>14,869.3</td><td>14,965.1</td><td>14,976.3</td><td>35.1</td><td>34.8</td><td>23,836.1</td><td>10.8</td><td>0.0</td><td>95s</td><td>104,911</td><td>1,024</td><td></td></tr>
-<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>20,644.9</td><td>68,305.5</td><td>73,344.1</td><td>1,455.1</td><td>275.9</td><td>134,379.2</td><td>14.7</td><td>0.1</td><td>174s</td><td>262,277</td><td>2,560</td><td></td></tr>
-<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>246,785.1</td><td>288,190.6</td><td>322,217.7</td><td>1,578.2</td><td>337.5</td><td>373,563.9</td><td>15.2</td><td>0.1</td><td>674s</td><td>1,049,101</td><td>10,240</td><td></td></tr>
-<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>748,739.3</td><td>765,962.3</td><td>821,315.9</td><td>1,602.1</td><td>338.0</td><td>850,412.0</td><td>15.2</td><td>0.1</td><td>1,682s</td><td>2,622,740</td><td>25,600</td><td></td></tr>
-<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>57.0</td><td>1,041.3</td><td>1,459.7</td><td>30.3</td><td>30.1</td><td>19,691.7</td><td>33.0</td><td>0.1</td><td>81s</td><td>1,228</td><td>2,681</td><td></td></tr>
-<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>202.6</td><td>412.7</td><td>413.4</td><td>33.4</td><td>35.8</td><td>17,561.8</td><td>125.1</td><td>0.6</td><td>71s</td><td>11,305</td><td>8,825</td><td></td></tr>
-<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>202.0</td><td>1,354.3</td><td>2,030.4</td><td>47.1</td><td>54.2</td><td>29,793.7</td><td>378.9</td><td>1.7</td><td>96s</td><td>37,857</td><td>36,349</td><td></td></tr>
-<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>316.7</td><td>4,209.6</td><td>5,050.8</td><td>183.5</td><td>111.1</td><td>47,764.6</td><td>575.4</td><td>2.7</td><td>149s</td><td>95,684</td><td>85,768</td><td></td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>14,869.3</td><td>14,965.1</td><td>14,976.3</td><td>35.1</td><td>34.8</td><td>23,836.1</td><td>10.8</td><td>0.0</td><td>95s</td><td>104,911</td><td>1,024</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>20,644.9</td><td>68,305.5</td><td>73,344.1</td><td>1,455.1</td><td>275.9</td><td>134,379.2</td><td>14.7</td><td>0.1</td><td>174s</td><td>262,277</td><td>2,560</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>246,785.1</td><td>288,190.6</td><td>322,217.7</td><td>1,578.2</td><td>337.5</td><td>373,563.9</td><td>15.2</td><td>0.1</td><td>674s</td><td>1,049,101</td><td>10,240</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>748,739.3</td><td>765,962.3</td><td>821,315.9</td><td>1,602.1</td><td>338.0</td><td>850,412.0</td><td>15.2</td><td>0.1</td><td>1,682s</td><td>2,622,740</td><td>25,600</td><td class="fail">FAIL</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>57.0</td><td>1,041.3</td><td>1,459.7</td><td>30.3</td><td>30.1</td><td>19,691.7</td><td>33.0</td><td>0.1</td><td>81s</td><td>1,228</td><td>2,681</td><td class="pass">PASS</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>202.6</td><td>412.7</td><td>413.4</td><td>33.4</td><td>35.8</td><td>17,561.8</td><td>125.1</td><td>0.6</td><td>71s</td><td>11,305</td><td>8,825</td><td class="pass">PASS</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>202.0</td><td>1,354.3</td><td>2,030.4</td><td>47.1</td><td>54.2</td><td>29,793.7</td><td>378.9</td><td>1.7</td><td>96s</td><td>37,857</td><td>36,349</td><td class="pass">PASS</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>316.7</td><td>4,209.6</td><td>5,050.8</td><td>183.5</td><td>111.1</td><td>47,764.6</td><td>575.4</td><td>2.7</td><td>149s</td><td>95,684</td><td>85,768</td><td class="fail">FAIL</td></tr>
 </table>
 <p>totals: 50.4 min of benchmarked load across 8 runs | 4,185,103 prompt tokens in | 173,047 tokens generated</p>
 <h3>Multi-turn conversations</h3>

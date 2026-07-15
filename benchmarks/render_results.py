@@ -71,7 +71,7 @@ LEGEND = """\
 | req/s | Completed requests per second (capacity in user terms) |
 | run dur | Wall-clock duration of that benchmark run, seconds |
 | in tok / out tok | Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports. |
-| SLO | PASS/FAIL against the working targets (docs/benchmarking.md) — only judged on `colocated` rows: TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms |
+| SLO | PASS/FAIL against the working targets (docs/benchmarking.md): TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms. Evaluated on every row; read per scenario — `colocated` is the binding product judgment, `solo` is a model's standalone ceiling, and `context`/`contextpair` failing at high tiers is the expected capacity cliff (worst-case probe), not a defect |
 
 **Multi-turn conversations table** (conversation replay with growing history —
 prefix-cache and KV-offloading behavior): parsed from the harness reports.
@@ -255,9 +255,12 @@ def fmt(key, value):
 
 
 def slo_verdict(scenario, tier, data):
-    """Pass/fail against the working SLOs — judged on the co-located scenario."""
-    if scenario != "colocated":
-        return ""
+    """Pass/fail against the working SLOs — evaluated for every scenario.
+
+    Interpretation differs by scenario (see legend): colocated is the binding
+    product judgment; solo shows a model's standalone ceiling; context rows
+    failing at high tiers is the expected capacity cliff, not a defect.
+    """
     ttft = data.get("p95_ttft_ms")
     itl = data.get("p95_itl_ms")
     if ttft is None or itl is None:
