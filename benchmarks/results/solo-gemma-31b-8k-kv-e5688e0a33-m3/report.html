@@ -1,0 +1,78 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>solo-gemma-31b-8k-kv-e5688e0a33-m3</title><style>
+body { font-family: -apple-system, 'Segoe UI', sans-serif; margin: 2em auto; max-width: 1400px; padding: 0 1em; color: #1a1a1a; }
+table { border-collapse: collapse; margin: 1em 0; font-size: 13px; }
+th, td { border: 1px solid #d0d7de; padding: 4px 10px; text-align: left; white-space: nowrap; }
+th { background: #f6f8fa; }
+tr:nth-child(even) { background: #fafbfc; }
+code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+h1, h2, h3 { border-bottom: 1px solid #eee; padding-bottom: 4px; }
+.pass { color: #1a7f37; font-weight: 600; }
+.fail { color: #cf222e; font-weight: 600; }
+</style></head><body><h1>solo-gemma-31b-8k-kv-e5688e0a33-m3</h1>
+<h3>Legend</h3>
+<p><strong>Scenarios</strong></p>
+<table>
+<tr><th>Scenario</th><th>Meaning</th></tr>
+<tr><td><code>solo</code></td><td>Model alone on the GPU (other instances stopped) — per-model best case. ShareGPT workload (realistic short chat).</td></tr>
+<tr><td><code>colocated</code></td><td>All models serving, load driven against every endpoint simultaneously — the production topology. ShareGPT workload. SLO verdicts are judged here.</td></tr>
+<tr><td><code>context</code></td><td>Solo capacity probe: random long inputs at ~80% of the model's context window, zero prefix reuse (worst-case KV pressure).</td></tr>
+<tr><td><code>contextpair</code></td><td>Same long-input probe against all endpoints at once — "does this context + all models fit, at how many users".</td></tr>
+</table>
+<p><strong>Columns</strong></p>
+<table>
+<tr><th>Column</th><th>Meaning</th></tr>
+<tr><td>users</td><td>Concurrent simulated users (per model) for that row</td></tr>
+<tr><td>TTFT p50/p95/p99</td><td>Time to first token, ms — perceived responsiveness ("is it thinking?") at the median / 95th / 99th percentile</td></tr>
+<tr><td>ITL p95</td><td>Inter-token latency, ms — streaming smoothness; ≤100ms ≈ ≥10 tok/s per user, comfortably above reading speed</td></tr>
+<tr><td>TPOT p95</td><td>Time per output token, ms — close cousin of ITL, includes scheduling effects</td></tr>
+<tr><td>E2E p95</td><td>Full request latency, ms — complete answer time</td></tr>
+<tr><td>out tok/s</td><td>Aggregate output token throughput across all users (capacity)</td></tr>
+<tr><td>req/s</td><td>Completed requests per second (capacity in user terms)</td></tr>
+<tr><td>run dur</td><td>Wall-clock duration of that benchmark run, seconds</td></tr>
+<tr><td>in tok / out tok</td><td>Total tokens processed in that run: prompt tokens sent (prefill work) / tokens generated (decode work). Multi-turn runs are not included — see their own reports.</td></tr>
+<tr><td>KV use</td><td>Peak GPU KV cache usage DURING the run (scraped from the engine's periodic log; the post-run gauge reads ~0 once load drains)</td></tr>
+<tr><td>GPU hit</td><td>GPU prefix-cache hit rate during that row (Δhits/Δqueries vs the previous snapshot in the run)</td></tr>
+<tr><td>ext hit</td><td>External (RAM-offloaded) prefix-cache hit rate during that row — requires KV offloading</td></tr>
+<tr><td>SLO</td><td>PASS/FAIL against the working targets (docs/benchmarking.md): TTFT p95 ≤ 1.5s (≤2.5s at 50 users) AND ITL p95 ≤ 100ms. Evaluated on every row; read per scenario — <code>colocated</code> is the binding product judgment, <code>solo</code> is a model's standalone ceiling, and <code>context</code>/<code>contextpair</code> failing at high tiers is the expected capacity cliff (worst-case probe), not a defect</td></tr>
+</table>
+<p><strong>Multi-turn conversations table</strong> — conversation replay with growing</p>
+<p>history (prefix-cache and KV-offloading behavior), parsed from the harness</p>
+<p>reports; raw reports remain in <code>multiturn-*.txt</code>.</p>
+<table>
+<tr><th>Column</th><th>Meaning</th></tr>
+<tr><td>req/s</td><td>Completed turns per second</td></tr>
+<tr><td>TTFT / TPOT / e2e mean/tail</td><td>ms; tail = p99, falling back to p90 or max when small runs omit percentiles</td></tr>
+<tr><td>input tok mean/max</td><td>Input tokens per request — shows how deep conversations grew</td></tr>
+<tr><td>≈tok in/out total</td><td>Approximate totals (count × mean; the harness reports distributions, not sums)</td></tr>
+<tr><td>KV use / GPU hit / ext hit</td><td>Same meaning as the main-table columns, per tier (deltas vs the previous tier's snapshot, starting at the c0 baseline)</td></tr>
+<tr><td>KV stored/loaded</td><td>GB pushed to / pulled back from CPU RAM during that tier</td></tr>
+</table>
+<p>profile: <strong>solo-gemma-31b-8k-kv</strong> | config: <code>e5688e0a33</code> | git: <code>4aa512b44f</code> | host: g6e.2xlarge (NVIDIA L40S, 610.43.02) | image: vllm/vllm-openai:latest | first run: 2026-07-16T05:31:20Z</p>
+<h3>Configuration</h3>
+<table>
+<tr><th>instance</th><th>model</th><th>context window</th><th>GPU mem fraction</th><th>KV pool</th><th>max conc @ctx</th><th>KV offload</th><th>other flags</th></tr>
+<tr><td>gemma-31b</td><td>gemma-4-31b-it-awq-4bit</td><td>8,192</td><td>0.9</td><td>46,894 tok (19.0 GiB)</td><td>5.72x @ 8,192</td><td>native, 40 GB RAM</td><td><code>--enable-prefix-caching --enable-chunked-prefill</code></td></tr>
+</table>
+<p>workload: dataset=sharegpt | tiers=[1, 5, 20, 50] | prompts/user=8 | seed=42 | scenarios=['solo'] | context-stress inputs≈80% of window, 256 out | multi-turn: tiers [1, 5, 20, 50] × 3 conv/client, 12-18 turns</p>
+<p>served (observed): <code>gemma-31b</code> = gemma-4-31b-it-awq-4bit</p>
+<table>
+<tr><th>scenario</th><th>model</th><th>users</th><th>TTFT p50</th><th>TTFT p95</th><th>TTFT p99</th><th>ITL p95</th><th>TPOT p95</th><th>E2E p95</th><th>out tok/s</th><th>req/s</th><th>run dur</th><th>in tok</th><th>out tok</th><th>KV use</th><th>GPU hit</th><th>ext hit</th><th>SLO</th></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>2,829.0</td><td>2,832.7</td><td>2,833.0</td><td>31.7</td><td>31.6</td><td>10,877.7</td><td>23.6</td><td>0.1</td><td>43s</td><td>26,265</td><td>1,024</td><td>7%</td><td>0.0%</td><td>0.0%</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>5,845.8</td><td>13,001.7</td><td>13,812.3</td><td>40.7</td><td>81.6</td><td>31,775.1</td><td>53.0</td><td>0.2</td><td>48s</td><td>65,663</td><td>2,560</td><td>43%</td><td>0.0%</td><td>0.0%</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>27,340.5</td><td>66,023.8</td><td>70,783.1</td><td>1,122.0</td><td>191.4</td><td>114,416.6</td><td>61.5</td><td>0.2</td><td>167s</td><td>262,663</td><td>10,240</td><td>99%</td><td>0.0%</td><td>0.0%</td><td class="fail">FAIL</td></tr>
+<tr><td>context</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>156,995.0</td><td>173,714.7</td><td>186,299.9</td><td>1,182.8</td><td>198.4</td><td>223,131.2</td><td>62.3</td><td>0.2</td><td>411s</td><td>656,637</td><td>25,600</td><td>99%</td><td>0.0%</td><td>0.0%</td><td class="fail">FAIL</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>1</td><td>116.8</td><td>1,090.0</td><td>1,415.0</td><td>30.3</td><td>30.3</td><td>12,284.5</td><td>32.2</td><td>0.2</td><td>46s</td><td>2,484</td><td>1,494</td><td>4%</td><td>0.0%</td><td>0.0%</td><td class="pass">PASS</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>5</td><td>131.0</td><td>564.6</td><td>565.1</td><td>32.1</td><td>41.1</td><td>17,554.2</td><td>122.9</td><td>0.6</td><td>65s</td><td>9,227</td><td>7,949</td><td>7%</td><td>0.0%</td><td>0.0%</td><td class="pass">PASS</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>20</td><td>266.5</td><td>1,518.1</td><td>1,519.0</td><td>85.3</td><td>69.3</td><td>27,301.9</td><td>295.3</td><td>1.6</td><td>98s</td><td>48,814</td><td>28,993</td><td>43%</td><td>0.0%</td><td>0.0%</td><td class="fail">FAIL</td></tr>
+<tr><td>solo</td><td>gemma-4-31b-it-awq-4bit</td><td>50</td><td>315.4</td><td>3,073.0</td><td>4,799.1</td><td>204.4</td><td>120.3</td><td>43,953.3</td><td>556.6</td><td>2.8</td><td>144s</td><td>94,413</td><td>80,052</td><td>90%</td><td>0.0%</td><td>0.2%</td><td class="fail">FAIL</td></tr>
+</table>
+<p>totals: 17.0 min of benchmarked load across 8 runs | 1,166,166 prompt tokens in | 157,912 tokens generated</p>
+<h3>Multi-turn conversations</h3>
+<table>
+<tr><th>instance</th><th>clients</th><th>req/s</th><th>TTFT mean/tail</th><th>TPOT mean/tail</th><th>e2e mean/tail</th><th>input tok mean/max</th><th>≈tok in/out total</th><th>KV use</th><th>GPU hit</th><th>ext hit</th><th>KV stored/loaded</th><th>runtime</th></tr>
+<tr><td>gemma-31b</td><td>1</td><td>0.30</td><td>209 / 416</td><td>31 / 31</td><td>3,364 / 3,745</td><td>2,056 / 2,838</td><td>32,892 / 1,660</td><td>5%</td><td>78.6%</td><td>0.0%</td><td>6.21 / 0.00 GB</td><td>54s</td></tr>
+<tr><td>gemma-31b</td><td>5</td><td>1.01</td><td>301 / 1,341</td><td>41 / 56</td><td>4,302 / 6,522</td><td>2,218 / 4,633</td><td>221,806 / 9,934</td><td>25%</td><td>83.2%</td><td>0.1%</td><td>32.79 / 0.03 GB</td><td>99s</td></tr>
+<tr><td>gemma-31b</td><td>20</td><td>0.98</td><td>2,511 / 9,155</td><td>166 / 238</td><td>18,896 / 31,768</td><td>2,137 / 4,638</td><td>782,288 / 36,431</td><td>100%</td><td>13.5%</td><td>2.7%</td><td>539.55 / 28.10 GB</td><td>374s</td></tr>
+<tr><td>gemma-31b</td><td>50</td><td>0.93</td><td>27,835 / 46,292</td><td>215 / 654</td><td>49,160 / 103,575</td><td>2,180 / 4,837</td><td>2,072,752 / 95,271</td><td>100%</td><td>7.2%</td><td>1.2%</td><td>1479.80 / 134.90 GB</td><td>1,027s</td></tr>
+</table>
+<p>unparsed multi-turn files (failed or unexpected format): <code>multiturn-gemma-31b-c1.kvuse.txt</code>, <code>multiturn-gemma-31b-c20.kvuse.txt</code>, <code>multiturn-gemma-31b-c5.kvuse.txt</code>, <code>multiturn-gemma-31b-c50.kvuse.txt</code></p></body></html>

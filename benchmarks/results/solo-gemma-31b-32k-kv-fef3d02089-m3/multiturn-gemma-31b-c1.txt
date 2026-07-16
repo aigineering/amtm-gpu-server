@@ -1,0 +1,58 @@
+16-07-2026 02:45:49 [INFO] - Namespace(input_file='/results/multi_turn_input-c1.json', output_file=None, seed=0, model='/models/gemma-4-31b-it-awq-4bit', served_model_name='gemma-31b', url='http://localhost:8001', api_key='133d94dec7c13365a57a979e2b64a8996b83e8c8943040fcb76981b1379bd757', header=None, num_clients=1, max_active_conversations=3, max_num_requests=None, warmup_step=False, max_turns=None, no_early_stop=True, limit_max_tokens=0, limit_min_tokens=0, request_rate=0, max_retries=0, conversation_sampling=<ConversationSampling.ROUND_ROBIN: 'round_robin'>, verify_output=False, request_timeout_sec=120, no_stream=False, send_conversation_id=False, excel_output=False, stats_json_output=None, verbose=False, print_content=False, warmup_percentages='0%', trust_remote_code=False)
+16-07-2026 02:45:49 [INFO] - [92mInput parameters:[0m
+16-07-2026 02:45:49 [INFO] - url=http://localhost:8001
+16-07-2026 02:45:49 [INFO] - model=/models/gemma-4-31b-it-awq-4bit
+16-07-2026 02:45:49 [INFO] - num_clients=1
+16-07-2026 02:45:49 [INFO] - Warmup percentages (percentage of samples): [0.0]
+16-07-2026 02:45:49 [INFO] - Loading tokenizer
+16-07-2026 02:45:51 [INFO] - [94mCollecting information from server: http://localhost:8001[0m
+16-07-2026 02:45:51 [INFO] - [94mServer version: {"version":"0.25.1"}[0m
+16-07-2026 02:45:51 [INFO] - [94mModels:[0m
+16-07-2026 02:45:51 [INFO] - [94m	model_id='gemma-31b', max_model_len=32768[0m
+16-07-2026 02:45:51 [INFO] - Reading input file: /results/multi_turn_input-c1.json
+16-07-2026 02:45:51 [INFO] - Using input file with filetype: generate_conversations
+16-07-2026 02:45:51 [INFO] - [95mGenerating conversations...[0m
+16-07-2026 02:45:51 [INFO] - GenConvArgs(num_conversations=3, text_files=['pg1184.txt'], input_num_turns=UniformDistribution[12, 18], input_common_prefix_num_tokens=Constant[500], input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000], input_num_tokens=UniformDistribution[120, 160], output_num_tokens=UniformDistribution[80, 120], print_stats=False)
+16-07-2026 02:45:53 [INFO] - Loaded 658685 tokens from file pg1184.txt, total tokens so far: 658685
+Generating conversations:   0%|          | 0/3 [00:00<?, ?conv/s]Generating conversations: 100%|██████████| 3/3 [00:00<00:00, 438.02conv/s]
+16-07-2026 02:45:53 [INFO] - [92mStarting 1 clients[0m
+16-07-2026 02:45:53 [INFO] - [96mStarted client 0: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 02:46:47 [INFO] - [93mClient 0 has no more work[0m
+16-07-2026 02:46:47 [INFO] - [96mClient 0 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 02:46:47 [INFO] - [96m1 out of 1 clients finished[0m
+16-07-2026 02:46:47 [INFO] - [96mAll 1 clients finished[0m
+16-07-2026 02:46:47 [INFO] - Collected 16 samples from all the clients
+16-07-2026 02:46:47 [INFO] - [96mWaiting for client client_0 (is alive: True)[0m
+16-07-2026 02:46:47 [INFO] - All 1 clients exited (successfully finished 1 out of 3 conversations)
+16-07-2026 02:46:47 [INFO] - [92mAll clients finished, benchmark runtime: 53.939 sec (53938.552 ms), requests per second: 0.297[0m
+16-07-2026 02:46:47 [INFO] - Processing 16 samples...
+----------------------------------------------------------------------------------------------------
+[93mParameters:[0m
+model=/models/gemma-4-31b-it-awq-4bit
+num_clients=1
+num_conversations=3
+active_conversations=3
+seed=0
+[93mConversations Generation Parameters:[0m
+text_files=pg1184.txt
+input_num_turns=UniformDistribution[12, 18]
+input_common_prefix_num_tokens=Constant[500]
+input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000]
+input_num_tokens=UniformDistribution[120, 160]
+output_num_tokens=UniformDistribution[80, 120]
+----------------------------------------------------------------------------------------------------
+[93mStatistics summary:[0m
+runtime_sec = 53.894
+requests_per_sec = 0.297
+----------------------------------------------------------------------------------------------------
+                   count     mean     std  ...      75%      90%      max
+ttft_ms             16.0   208.24  151.04  ...   156.02   414.74   616.63
+tpot_ms             16.0    30.71    0.14  ...    30.74    30.90    31.03
+latency_ms          16.0  3363.50  453.72  ...  3645.23  3745.37  4151.65
+input_num_turns     16.0     5.38    3.20  ...     7.50     9.00    11.00
+input_num_tokens    16.0  2055.75  499.99  ...  2394.75  2706.00  2838.00
+output_num_tokens   16.0   103.75   14.46  ...   115.00   117.00   119.00
+output_num_chunks   16.0   102.75   14.46  ...   114.00   116.00   118.00
+
+[7 rows x 9 columns]
+----------------------------------------------------------------------------------------------------

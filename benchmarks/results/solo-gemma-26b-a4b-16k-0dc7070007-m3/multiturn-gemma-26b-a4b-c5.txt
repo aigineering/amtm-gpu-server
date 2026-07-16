@@ -1,0 +1,90 @@
+15-07-2026 23:25:08 [INFO] - Namespace(input_file='/results/multi_turn_input-c5.json', output_file=None, seed=0, model='/models/gemma-4-26b-a4b-it-awq-4bit', served_model_name='gemma-26b-a4b', url='http://localhost:8001', api_key='b57e863f9decc5c101fe6435bf3b731b55b3f749603a23f03409077bd276ad8c', header=None, num_clients=5, max_active_conversations=15, max_num_requests=None, warmup_step=False, max_turns=None, no_early_stop=True, limit_max_tokens=0, limit_min_tokens=0, request_rate=0, max_retries=0, conversation_sampling=<ConversationSampling.ROUND_ROBIN: 'round_robin'>, verify_output=False, request_timeout_sec=120, no_stream=False, send_conversation_id=False, excel_output=False, stats_json_output=None, verbose=False, print_content=False, warmup_percentages='0%', trust_remote_code=False)
+15-07-2026 23:25:08 [INFO] - [92mInput parameters:[0m
+15-07-2026 23:25:08 [INFO] - url=http://localhost:8001
+15-07-2026 23:25:08 [INFO] - model=/models/gemma-4-26b-a4b-it-awq-4bit
+15-07-2026 23:25:08 [INFO] - num_clients=5
+15-07-2026 23:25:08 [INFO] - Warmup percentages (percentage of samples): [0.0]
+15-07-2026 23:25:08 [INFO] - Loading tokenizer
+15-07-2026 23:25:10 [INFO] - [94mCollecting information from server: http://localhost:8001[0m
+15-07-2026 23:25:10 [INFO] - [94mServer version: {"version":"0.25.1"}[0m
+15-07-2026 23:25:10 [INFO] - [94mModels:[0m
+15-07-2026 23:25:10 [INFO] - [94m	model_id='gemma-26b-a4b', max_model_len=16384[0m
+15-07-2026 23:25:10 [INFO] - Reading input file: /results/multi_turn_input-c5.json
+15-07-2026 23:25:10 [INFO] - Using input file with filetype: generate_conversations
+15-07-2026 23:25:10 [INFO] - [95mGenerating conversations...[0m
+15-07-2026 23:25:10 [INFO] - GenConvArgs(num_conversations=15, text_files=['pg1184.txt'], input_num_turns=UniformDistribution[12, 18], input_common_prefix_num_tokens=Constant[500], input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000], input_num_tokens=UniformDistribution[120, 160], output_num_tokens=UniformDistribution[80, 120], print_stats=False)
+15-07-2026 23:25:12 [INFO] - Loaded 658685 tokens from file pg1184.txt, total tokens so far: 658685
+Generating conversations:   0%|          | 0/15 [00:00<?, ?conv/s]Generating conversations: 100%|██████████| 15/15 [00:00<00:00, 468.08conv/s]
+15-07-2026 23:25:12 [INFO] - [92mStarting 5 clients[0m
+15-07-2026 23:25:12 [INFO] - [96mStarted client 0: max_num_requests=None, max_active_conversations=3[0m
+15-07-2026 23:25:12 [INFO] - [96mStarted client 1: max_num_requests=None, max_active_conversations=3[0m
+15-07-2026 23:25:12 [INFO] - [96mStarted client 2: max_num_requests=None, max_active_conversations=3[0m
+15-07-2026 23:25:12 [INFO] - [96mStarted client 3: max_num_requests=None, max_active_conversations=3[0m
+15-07-2026 23:25:12 [INFO] - [96mStarted client 4: max_num_requests=None, max_active_conversations=3[0m
+15-07-2026 23:25:36 [INFO] - [93mClient 4 has no more work[0m
+15-07-2026 23:25:36 [INFO] - [96mClient 4 is done (num_successes=17, num_failures=0)[0m
+15-07-2026 23:25:36 [INFO] - [96m1 out of 5 clients finished[0m
+15-07-2026 23:25:37 [INFO] - [93mClient 2 has no more work[0m
+15-07-2026 23:25:37 [INFO] - [96mClient 2 is done (num_successes=18, num_failures=0)[0m
+15-07-2026 23:25:37 [INFO] - [96m2 out of 5 clients finished[0m
+15-07-2026 23:25:39 [INFO] - [93mClient 0 has no more work[0m
+15-07-2026 23:25:39 [INFO] - [96mClient 0 is done (num_successes=19, num_failures=0)[0m
+15-07-2026 23:25:39 [INFO] - [96mFinished 3 out of 15 conversations (20%), 2 out of 5 clients finished, collected 89 measurements, runtime 26.164 sec[0m
+15-07-2026 23:25:39 [INFO] - [96mEstimated req/sec 3.402, estimated runtime left 104.656 sec[0m
+15-07-2026 23:25:39 [INFO] - --------------------------------------------------
+15-07-2026 23:25:39 [INFO] - [moving_avg_ttft_ms       ] avg:     64.632 (75 samples)
+15-07-2026 23:25:39 [INFO] - [moving_avg_tpot_ms       ] avg:     13.297 (75 samples)
+15-07-2026 23:25:39 [INFO] - [ttft_ms                  ] avg:     77.201, min:     51.575, max:    251.275
+15-07-2026 23:25:39 [INFO] - [tpot_ms                  ] avg:     13.459, min:     11.579, max:     16.448
+15-07-2026 23:25:39 [INFO] - [latency_ms               ] avg:   1398.999, min:   1050.357, max:   1892.197
+15-07-2026 23:25:39 [INFO] - [input_num_turns          ] avg:      5.966, min:      1.000, max:     13.000
+15-07-2026 23:25:39 [INFO] - [input_num_tokens         ] avg:   2117.124, min:    807.000, max:   4633.000
+15-07-2026 23:25:39 [INFO] - [output_num_tokens        ] avg:     99.169, min:     80.000, max:    120.000
+15-07-2026 23:25:39 [INFO] - --------------------------------------------------
+15-07-2026 23:25:39 [INFO] - [96m3 out of 5 clients finished[0m
+15-07-2026 23:25:43 [INFO] - [93mClient 3 has no more work[0m
+15-07-2026 23:25:43 [INFO] - [96mClient 3 is done (num_successes=23, num_failures=0)[0m
+15-07-2026 23:25:43 [INFO] - [96m4 out of 5 clients finished[0m
+15-07-2026 23:25:43 [INFO] - [93mClient 1 has no more work[0m
+15-07-2026 23:25:43 [INFO] - [96mClient 1 is done (num_successes=22, num_failures=0)[0m
+15-07-2026 23:25:43 [INFO] - [96m5 out of 5 clients finished[0m
+15-07-2026 23:25:43 [INFO] - [96mAll 5 clients finished[0m
+15-07-2026 23:25:43 [INFO] - Collected 99 samples from all the clients
+15-07-2026 23:25:43 [INFO] - [96mWaiting for client client_0 (is alive: False)[0m
+15-07-2026 23:25:43 [INFO] - [96mWaiting for client client_1 (is alive: True)[0m
+15-07-2026 23:25:43 [INFO] - [96mWaiting for client client_2 (is alive: False)[0m
+15-07-2026 23:25:43 [INFO] - [96mWaiting for client client_3 (is alive: False)[0m
+15-07-2026 23:25:43 [INFO] - [96mWaiting for client client_4 (is alive: False)[0m
+15-07-2026 23:25:43 [INFO] - All 5 clients exited (successfully finished 5 out of 15 conversations)
+15-07-2026 23:25:43 [INFO] - [92mAll clients finished, benchmark runtime: 31.003 sec (31002.890 ms), requests per second: 3.193[0m
+15-07-2026 23:25:43 [INFO] - Processing 99 samples...
+----------------------------------------------------------------------------------------------------
+[93mParameters:[0m
+model=/models/gemma-4-26b-a4b-it-awq-4bit
+num_clients=5
+num_conversations=15
+active_conversations=15
+seed=0
+[93mConversations Generation Parameters:[0m
+text_files=pg1184.txt
+input_num_turns=UniformDistribution[12, 18]
+input_common_prefix_num_tokens=Constant[500]
+input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000]
+input_num_tokens=UniformDistribution[120, 160]
+output_num_tokens=UniformDistribution[80, 120]
+----------------------------------------------------------------------------------------------------
+[93mStatistics summary:[0m
+runtime_sec = 30.917
+requests_per_sec = 3.202
+----------------------------------------------------------------------------------------------------
+                   count     mean     std  ...      75%      90%      max
+ttft_ms             99.0    75.33   38.42  ...    67.10    92.79   251.28
+tpot_ms             99.0    13.08    1.33  ...    13.52    13.81    16.45
+latency_ms          99.0  1362.67  219.23  ...  1517.25  1641.26  1892.20
+input_num_turns     99.0     6.72    3.99  ...     9.00    11.40    15.00
+input_num_tokens    99.0  2191.91  769.51  ...  2581.00  3176.60  4633.00
+output_num_tokens   99.0    99.46   12.80  ...   112.00   116.20   120.00
+output_num_chunks   99.0    98.46   12.80  ...   111.00   115.20   119.00
+
+[7 rows x 9 columns]
+----------------------------------------------------------------------------------------------------

@@ -1,0 +1,351 @@
+16-07-2026 06:04:31 [INFO] - Namespace(input_file='/results/multi_turn_input-c50.json', output_file=None, seed=0, model='/models/gemma-4-31b-it-awq-4bit', served_model_name='gemma-31b', url='http://localhost:8001', api_key='e11dcc3e7083fcb4b18ecaae9e5347034cf7e4ed2f4604c8007cc3aa8429a0e1', header=None, num_clients=50, max_active_conversations=150, max_num_requests=None, warmup_step=False, max_turns=None, no_early_stop=True, limit_max_tokens=0, limit_min_tokens=0, request_rate=0, max_retries=0, conversation_sampling=<ConversationSampling.ROUND_ROBIN: 'round_robin'>, verify_output=False, request_timeout_sec=120, no_stream=False, send_conversation_id=False, excel_output=False, stats_json_output=None, verbose=False, print_content=False, warmup_percentages='0%', trust_remote_code=False)
+16-07-2026 06:04:31 [INFO] - [92mInput parameters:[0m
+16-07-2026 06:04:31 [INFO] - url=http://localhost:8001
+16-07-2026 06:04:31 [INFO] - model=/models/gemma-4-31b-it-awq-4bit
+16-07-2026 06:04:31 [INFO] - num_clients=50
+16-07-2026 06:04:31 [INFO] - Warmup percentages (percentage of samples): [0.0]
+16-07-2026 06:04:31 [INFO] - Loading tokenizer
+16-07-2026 06:04:33 [INFO] - [94mCollecting information from server: http://localhost:8001[0m
+16-07-2026 06:04:33 [INFO] - [94mServer version: {"version":"0.25.1"}[0m
+16-07-2026 06:04:33 [INFO] - [94mModels:[0m
+16-07-2026 06:04:33 [INFO] - [94m	model_id='gemma-31b', max_model_len=8192[0m
+16-07-2026 06:04:33 [INFO] - Reading input file: /results/multi_turn_input-c50.json
+16-07-2026 06:04:33 [INFO] - Using input file with filetype: generate_conversations
+16-07-2026 06:04:33 [INFO] - [95mGenerating conversations...[0m
+16-07-2026 06:04:33 [INFO] - GenConvArgs(num_conversations=150, text_files=['pg1184.txt'], input_num_turns=UniformDistribution[12, 18], input_common_prefix_num_tokens=Constant[500], input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000], input_num_tokens=UniformDistribution[120, 160], output_num_tokens=UniformDistribution[80, 120], print_stats=False)
+16-07-2026 06:04:35 [INFO] - Loaded 658685 tokens from file pg1184.txt, total tokens so far: 658685
+Generating conversations:   0%|          | 0/150 [00:00<?, ?conv/s]Generating conversations:  29%|██▉       | 44/150 [00:00<00:00, 431.32conv/s]Generating conversations:  62%|██████▏   | 93/150 [00:00<00:00, 460.50conv/s]Generating conversations:  95%|█████████▌| 143/150 [00:00<00:00, 474.70conv/s]Generating conversations: 100%|██████████| 150/150 [00:00<00:00, 457.33conv/s]
+16-07-2026 06:04:35 [INFO] - [92mStarting 50 clients[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 0: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 1: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 2: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 3: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 4: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:35 [INFO] - [96mStarted client 5: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 6: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 7: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 8: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 9: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 10: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 11: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 12: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 13: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 14: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 15: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 16: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 17: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 18: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 19: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 20: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 21: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 22: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 23: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 24: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 25: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 26: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 27: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 28: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 29: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 30: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 31: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 32: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 33: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 34: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 35: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 36: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 37: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 38: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 39: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 40: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 41: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 42: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 43: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 44: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 45: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 46: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 47: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 48: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:04:36 [INFO] - [96mStarted client 49: max_num_requests=None, max_active_conversations=3[0m
+16-07-2026 06:17:00 [INFO] - [93mClient 26 has no more work[0m
+16-07-2026 06:17:00 [INFO] - [96mClient 26 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:17:00 [INFO] - [96m1 out of 50 clients finished[0m
+16-07-2026 06:17:27 [INFO] - [93mClient 7 has no more work[0m
+16-07-2026 06:17:27 [INFO] - [96mClient 7 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:17:27 [INFO] - [96m2 out of 50 clients finished[0m
+16-07-2026 06:17:27 [INFO] - [93mClient 17 has no more work[0m
+16-07-2026 06:17:27 [INFO] - [96mClient 17 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:17:27 [INFO] - [96m3 out of 50 clients finished[0m
+16-07-2026 06:17:45 [INFO] - [93mClient 42 has no more work[0m
+16-07-2026 06:17:45 [INFO] - [96mClient 42 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:17:45 [INFO] - [96m4 out of 50 clients finished[0m
+16-07-2026 06:17:52 [INFO] - [93mClient 9 has no more work[0m
+16-07-2026 06:17:52 [INFO] - [96mClient 9 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:17:52 [INFO] - [96m5 out of 50 clients finished[0m
+16-07-2026 06:18:04 [INFO] - [93mClient 19 has no more work[0m
+16-07-2026 06:18:04 [INFO] - [96mClient 19 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:18:04 [INFO] - [96m6 out of 50 clients finished[0m
+16-07-2026 06:18:18 [INFO] - [93mClient 39 has no more work[0m
+16-07-2026 06:18:18 [INFO] - [96mClient 39 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:18:18 [INFO] - [96m7 out of 50 clients finished[0m
+16-07-2026 06:18:20 [INFO] - [93mClient 18 has no more work[0m
+16-07-2026 06:18:20 [INFO] - [96mClient 18 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:18:20 [INFO] - [96m8 out of 50 clients finished[0m
+16-07-2026 06:18:36 [INFO] - [93mClient 33 has no more work[0m
+16-07-2026 06:18:36 [INFO] - [96mClient 33 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:18:36 [INFO] - [96m9 out of 50 clients finished[0m
+16-07-2026 06:18:47 [INFO] - [93mClient 46 has no more work[0m
+16-07-2026 06:18:47 [INFO] - [96mClient 46 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:18:47 [INFO] - [96m10 out of 50 clients finished[0m
+16-07-2026 06:18:56 [INFO] - [93mClient 2 has no more work[0m
+16-07-2026 06:18:56 [INFO] - [96mClient 2 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:18:56 [INFO] - [96m11 out of 50 clients finished[0m
+16-07-2026 06:19:06 [INFO] - [93mClient 44 has no more work[0m
+16-07-2026 06:19:06 [INFO] - [96mClient 44 is done (num_successes=16, num_failures=0)[0m
+16-07-2026 06:19:06 [INFO] - [96mFinished 12 out of 150 conversations (8%), 11 out of 50 clients finished, collected 831 measurements, runtime 870.911 sec[0m
+16-07-2026 06:19:06 [INFO] - [96mEstimated req/sec 0.954, estimated runtime left 10015.478 sec[0m
+16-07-2026 06:19:06 [INFO] - --------------------------------------------------
+16-07-2026 06:19:06 [INFO] - [moving_avg_ttft_ms       ] avg:  33965.360 (500 samples)
+16-07-2026 06:19:06 [INFO] - [moving_avg_tpot_ms       ] avg:    242.051 (500 samples)
+16-07-2026 06:19:06 [INFO] - [ttft_ms                  ] avg:  28624.107, min:    880.477, max:  52885.658
+16-07-2026 06:19:06 [INFO] - [tpot_ms                  ] avg:    216.574, min:     64.080, max:    901.971
+16-07-2026 06:19:06 [INFO] - [latency_ms               ] avg:  50174.817, min:  16035.765, max: 112435.803
+16-07-2026 06:19:06 [INFO] - [input_num_turns          ] avg:      5.585, min:      1.000, max:     11.000
+16-07-2026 06:19:06 [INFO] - [input_num_tokens         ] avg:   2067.742, min:    748.000, max:   4816.000
+16-07-2026 06:19:06 [INFO] - [output_num_tokens        ] avg:    100.521, min:     80.000, max:    120.000
+16-07-2026 06:19:06 [INFO] - --------------------------------------------------
+16-07-2026 06:19:06 [INFO] - [96m12 out of 50 clients finished[0m
+16-07-2026 06:19:14 [INFO] - [93mClient 24 has no more work[0m
+16-07-2026 06:19:14 [INFO] - [96mClient 24 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:19:14 [INFO] - [96m13 out of 50 clients finished[0m
+16-07-2026 06:19:32 [INFO] - [93mClient 15 has no more work[0m
+16-07-2026 06:19:32 [INFO] - [96mClient 15 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:19:32 [INFO] - [96m14 out of 50 clients finished[0m
+16-07-2026 06:19:44 [INFO] - [93mClient 14 has no more work[0m
+16-07-2026 06:19:44 [INFO] - [96mClient 14 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:19:44 [INFO] - [96m15 out of 50 clients finished[0m
+16-07-2026 06:19:47 [INFO] - [93mClient 34 has no more work[0m
+16-07-2026 06:19:47 [INFO] - [96mClient 34 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:19:47 [INFO] - [96m16 out of 50 clients finished[0m
+16-07-2026 06:19:53 [INFO] - [93mClient 28 has no more work[0m
+16-07-2026 06:19:53 [INFO] - [96mClient 28 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:19:53 [INFO] - [96m17 out of 50 clients finished[0m
+16-07-2026 06:20:03 [INFO] - [93mClient 6 has no more work[0m
+16-07-2026 06:20:03 [INFO] - [96mClient 6 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:20:03 [INFO] - [96m18 out of 50 clients finished[0m
+16-07-2026 06:20:04 [INFO] - [93mClient 10 has no more work[0m
+16-07-2026 06:20:04 [INFO] - [96mClient 10 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:20:04 [INFO] - [96m19 out of 50 clients finished[0m
+16-07-2026 06:20:11 [INFO] - [93mClient 30 has no more work[0m
+16-07-2026 06:20:11 [INFO] - [96mClient 30 is done (num_successes=17, num_failures=0)[0m
+16-07-2026 06:20:11 [INFO] - [96m20 out of 50 clients finished[0m
+16-07-2026 06:20:12 [INFO] - [93mClient 12 has no more work[0m
+16-07-2026 06:20:12 [INFO] - [96mClient 12 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:20:12 [INFO] - [96m21 out of 50 clients finished[0m
+16-07-2026 06:20:15 [INFO] - [93mClient 13 has no more work[0m
+16-07-2026 06:20:15 [INFO] - [96mClient 13 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:20:15 [INFO] - [96m22 out of 50 clients finished[0m
+16-07-2026 06:20:17 [INFO] - [93mClient 48 has no more work[0m
+16-07-2026 06:20:17 [INFO] - [96mClient 48 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:20:17 [INFO] - [96m23 out of 50 clients finished[0m
+16-07-2026 06:20:25 [INFO] - [93mClient 35 has no more work[0m
+16-07-2026 06:20:25 [INFO] - [96mClient 35 is done (num_successes=18, num_failures=0)[0m
+16-07-2026 06:20:25 [INFO] - [96mFinished 24 out of 150 conversations (16%), 23 out of 50 clients finished, collected 890 measurements, runtime 949.175 sec[0m
+16-07-2026 06:20:25 [INFO] - [96mEstimated req/sec 0.938, estimated runtime left 4983.169 sec[0m
+16-07-2026 06:20:25 [INFO] - --------------------------------------------------
+16-07-2026 06:20:25 [INFO] - [moving_avg_ttft_ms       ] avg:  34352.977 (500 samples)
+16-07-2026 06:20:25 [INFO] - [moving_avg_tpot_ms       ] avg:    245.137 (500 samples)
+16-07-2026 06:20:25 [INFO] - [ttft_ms                  ] avg:  28820.919, min:    880.477, max:  52885.658
+16-07-2026 06:20:25 [INFO] - [tpot_ms                  ] avg:    216.726, min:     64.080, max:    901.971
+16-07-2026 06:20:25 [INFO] - [latency_ms               ] avg:  50362.581, min:  16035.765, max: 112435.803
+16-07-2026 06:20:25 [INFO] - [input_num_turns          ] avg:      5.978, min:      1.000, max:     13.000
+16-07-2026 06:20:25 [INFO] - [input_num_tokens         ] avg:   2113.156, min:    748.000, max:   4816.000
+16-07-2026 06:20:25 [INFO] - [output_num_tokens        ] avg:    100.410, min:     80.000, max:    120.000
+16-07-2026 06:20:25 [INFO] - --------------------------------------------------
+16-07-2026 06:20:25 [INFO] - [96m24 out of 50 clients finished[0m
+16-07-2026 06:20:31 [INFO] - [93mClient 37 has no more work[0m
+16-07-2026 06:20:31 [INFO] - [96mClient 37 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:20:31 [INFO] - [96m25 out of 50 clients finished[0m
+16-07-2026 06:20:34 [INFO] - [93mClient 32 has no more work[0m
+16-07-2026 06:20:34 [INFO] - [96mClient 32 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:20:34 [INFO] - [96m26 out of 50 clients finished[0m
+16-07-2026 06:20:37 [INFO] - [93mClient 22 has no more work[0m
+16-07-2026 06:20:37 [INFO] - [96mClient 22 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:20:37 [INFO] - [96m27 out of 50 clients finished[0m
+16-07-2026 06:20:49 [INFO] - [93mClient 29 has no more work[0m
+16-07-2026 06:20:49 [INFO] - [96mClient 29 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:20:49 [INFO] - [96m28 out of 50 clients finished[0m
+16-07-2026 06:20:55 [INFO] - [93mClient 3 has no more work[0m
+16-07-2026 06:20:55 [INFO] - [96mClient 3 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:20:55 [INFO] - [96m29 out of 50 clients finished[0m
+16-07-2026 06:21:01 [INFO] - [93mClient 21 has no more work[0m
+16-07-2026 06:21:01 [INFO] - [96mClient 21 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:21:01 [INFO] - [96m30 out of 50 clients finished[0m
+16-07-2026 06:21:04 [INFO] - [93mClient 16 has no more work[0m
+16-07-2026 06:21:04 [INFO] - [96mClient 16 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:04 [INFO] - [96m31 out of 50 clients finished[0m
+16-07-2026 06:21:06 [INFO] - [93mClient 11 has no more work[0m
+16-07-2026 06:21:06 [INFO] - [96mClient 11 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:21:06 [INFO] - [96m32 out of 50 clients finished[0m
+16-07-2026 06:21:07 [INFO] - [93mClient 49 has no more work[0m
+16-07-2026 06:21:07 [INFO] - [96mClient 49 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:07 [INFO] - [96m33 out of 50 clients finished[0m
+16-07-2026 06:21:12 [INFO] - [93mClient 47 has no more work[0m
+16-07-2026 06:21:12 [INFO] - [96mClient 47 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:21:12 [INFO] - [96m34 out of 50 clients finished[0m
+16-07-2026 06:21:12 [INFO] - [93mClient 4 has no more work[0m
+16-07-2026 06:21:12 [INFO] - [96mClient 4 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:12 [INFO] - [96m35 out of 50 clients finished[0m
+16-07-2026 06:21:14 [INFO] - [93mClient 41 has no more work[0m
+16-07-2026 06:21:14 [INFO] - [96mClient 41 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:14 [INFO] - [96mFinished 36 out of 150 conversations (24%), 35 out of 50 clients finished, collected 924 measurements, runtime 998.982 sec[0m
+16-07-2026 06:21:14 [INFO] - [96mEstimated req/sec 0.925, estimated runtime left 3163.442 sec[0m
+16-07-2026 06:21:14 [INFO] - --------------------------------------------------
+16-07-2026 06:21:14 [INFO] - [moving_avg_ttft_ms       ] avg:  33724.686 (500 samples)
+16-07-2026 06:21:14 [INFO] - [moving_avg_tpot_ms       ] avg:    245.426 (500 samples)
+16-07-2026 06:21:14 [INFO] - [ttft_ms                  ] avg:  28499.406, min:    880.477, max:  52885.658
+16-07-2026 06:21:14 [INFO] - [tpot_ms                  ] avg:    217.786, min:     64.080, max:    901.971
+16-07-2026 06:21:14 [INFO] - [latency_ms               ] avg:  50095.942, min:  16035.765, max: 112435.803
+16-07-2026 06:21:14 [INFO] - [input_num_turns          ] avg:      6.221, min:      1.000, max:     13.000
+16-07-2026 06:21:14 [INFO] - [input_num_tokens         ] avg:   2152.006, min:    748.000, max:   4837.000
+16-07-2026 06:21:14 [INFO] - [output_num_tokens        ] avg:    100.209, min:     80.000, max:    120.000
+16-07-2026 06:21:14 [INFO] - --------------------------------------------------
+16-07-2026 06:21:14 [INFO] - [96m36 out of 50 clients finished[0m
+16-07-2026 06:21:16 [INFO] - [93mClient 25 has no more work[0m
+16-07-2026 06:21:16 [INFO] - [96mClient 25 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:21:16 [INFO] - [96m37 out of 50 clients finished[0m
+16-07-2026 06:21:20 [INFO] - [93mClient 5 has no more work[0m
+16-07-2026 06:21:20 [INFO] - [96mClient 5 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:20 [INFO] - [93mClient 45 has no more work[0m
+16-07-2026 06:21:20 [INFO] - [96mClient 45 is done (num_successes=21, num_failures=0)[0m
+16-07-2026 06:21:20 [INFO] - [96m38 out of 50 clients finished[0m
+16-07-2026 06:21:20 [INFO] - [96m39 out of 50 clients finished[0m
+16-07-2026 06:21:21 [INFO] - [93mClient 23 has no more work[0m
+16-07-2026 06:21:21 [INFO] - [96mClient 23 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:21 [INFO] - [96m40 out of 50 clients finished[0m
+16-07-2026 06:21:21 [INFO] - [93mClient 36 has no more work[0m
+16-07-2026 06:21:21 [INFO] - [96mClient 36 is done (num_successes=21, num_failures=0)[0m
+16-07-2026 06:21:21 [INFO] - [96m41 out of 50 clients finished[0m
+16-07-2026 06:21:24 [INFO] - [93mClient 1 has no more work[0m
+16-07-2026 06:21:24 [INFO] - [96mClient 1 is done (num_successes=19, num_failures=0)[0m
+16-07-2026 06:21:24 [INFO] - [96m42 out of 50 clients finished[0m
+16-07-2026 06:21:28 [INFO] - [93mClient 20 has no more work[0m
+16-07-2026 06:21:28 [INFO] - [96mClient 20 is done (num_successes=20, num_failures=0)[0m
+16-07-2026 06:21:28 [INFO] - [96m43 out of 50 clients finished[0m
+16-07-2026 06:21:29 [INFO] - [93mClient 0 has no more work[0m
+16-07-2026 06:21:29 [INFO] - [96mClient 0 is done (num_successes=22, num_failures=0)[0m
+16-07-2026 06:21:29 [INFO] - [96m44 out of 50 clients finished[0m
+16-07-2026 06:21:31 [INFO] - [93mClient 38 has no more work[0m
+16-07-2026 06:21:31 [INFO] - [96mClient 38 is done (num_successes=22, num_failures=0)[0m
+16-07-2026 06:21:31 [INFO] - [96m45 out of 50 clients finished[0m
+16-07-2026 06:21:33 [INFO] - [93mClient 31 has no more work[0m
+16-07-2026 06:21:33 [INFO] - [96mClient 31 is done (num_successes=22, num_failures=0)[0m
+16-07-2026 06:21:33 [INFO] - [96m46 out of 50 clients finished[0m
+16-07-2026 06:21:38 [INFO] - [93mClient 40 has no more work[0m
+16-07-2026 06:21:38 [INFO] - [96mClient 40 is done (num_successes=22, num_failures=0)[0m
+16-07-2026 06:21:38 [INFO] - [96m47 out of 50 clients finished[0m
+16-07-2026 06:21:39 [INFO] - [93mClient 27 has no more work[0m
+16-07-2026 06:21:39 [INFO] - [96mClient 27 is done (num_successes=22, num_failures=0)[0m
+16-07-2026 06:21:39 [INFO] - [96mFinished 48 out of 150 conversations (32%), 47 out of 50 clients finished, collected 948 measurements, runtime 1023.577 sec[0m
+16-07-2026 06:21:39 [INFO] - [96mEstimated req/sec 0.926, estimated runtime left 2175.102 sec[0m
+16-07-2026 06:21:39 [INFO] - --------------------------------------------------
+16-07-2026 06:21:39 [INFO] - [moving_avg_ttft_ms       ] avg:  32504.453 (500 samples)
+16-07-2026 06:21:39 [INFO] - [moving_avg_tpot_ms       ] avg:    240.774 (500 samples)
+16-07-2026 06:21:39 [INFO] - [ttft_ms                  ] avg:  27919.363, min:    880.477, max:  52885.658
+16-07-2026 06:21:39 [INFO] - [tpot_ms                  ] avg:    215.634, min:     57.963, max:    901.971
+16-07-2026 06:21:39 [INFO] - [latency_ms               ] avg:  49301.786, min:   7663.851, max: 112435.803
+16-07-2026 06:21:39 [INFO] - [input_num_turns          ] avg:      6.409, min:      1.000, max:     15.000
+16-07-2026 06:21:39 [INFO] - [input_num_tokens         ] avg:   2176.976, min:    748.000, max:   4837.000
+16-07-2026 06:21:39 [INFO] - [output_num_tokens        ] avg:    100.201, min:     80.000, max:    120.000
+16-07-2026 06:21:39 [INFO] - --------------------------------------------------
+16-07-2026 06:21:39 [INFO] - [96m48 out of 50 clients finished[0m
+16-07-2026 06:21:41 [INFO] - [93mClient 43 has no more work[0m
+16-07-2026 06:21:41 [INFO] - [96mClient 43 is done (num_successes=23, num_failures=0)[0m
+16-07-2026 06:21:41 [INFO] - [96m49 out of 50 clients finished[0m
+16-07-2026 06:21:43 [INFO] - [93mClient 8 has no more work[0m
+16-07-2026 06:21:43 [INFO] - [96mClient 8 is done (num_successes=25, num_failures=0)[0m
+16-07-2026 06:21:43 [INFO] - [96m50 out of 50 clients finished[0m
+16-07-2026 06:21:43 [INFO] - [96mAll 50 clients finished[0m
+16-07-2026 06:21:43 [INFO] - Collected 951 samples from all the clients
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_0 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_1 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_2 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_3 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_4 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_5 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_6 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_7 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_8 (is alive: True)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_9 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_10 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_11 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_12 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_13 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_14 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_15 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_16 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_17 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_18 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_19 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_20 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_21 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_22 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_23 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_24 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_25 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_26 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_27 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_28 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_29 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_30 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_31 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_32 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_33 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_34 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_35 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_36 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_37 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_38 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_39 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_40 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_41 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_42 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_43 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_44 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_45 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_46 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_47 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_48 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - [96mWaiting for client client_49 (is alive: False)[0m
+16-07-2026 06:21:43 [INFO] - All 50 clients exited (successfully finished 50 out of 150 conversations)
+16-07-2026 06:21:43 [INFO] - [92mAll clients finished, benchmark runtime: 1027.467 sec (1027466.991 ms), requests per second: 0.926[0m
+16-07-2026 06:21:43 [INFO] - Processing 951 samples...
+----------------------------------------------------------------------------------------------------
+[93mParameters:[0m
+model=/models/gemma-4-31b-it-awq-4bit
+num_clients=50
+num_conversations=150
+active_conversations=150
+seed=0
+[93mConversations Generation Parameters:[0m
+text_files=pg1184.txt
+input_num_turns=UniformDistribution[12, 18]
+input_common_prefix_num_tokens=Constant[500]
+input_prefix_num_tokens=LognormalDistribution[1000, 0.85, 5000]
+input_num_tokens=UniformDistribution[120, 160]
+output_num_tokens=UniformDistribution[80, 120]
+----------------------------------------------------------------------------------------------------
+[93mStatistics summary:[0m
+runtime_sec = 1026.805
+requests_per_sec = 0.926
+----------------------------------------------------------------------------------------------------
+                   count      mean       std  ...       90%        99%        max
+ttft_ms            951.0  27834.51   9560.52  ...  39272.47   46292.05   52885.66
+tpot_ms            951.0    215.07    108.31  ...    282.79     654.03     901.97
+latency_ms         951.0  49160.46  16763.78  ...  67847.53  103575.24  112435.80
+input_num_turns    951.0      6.44      3.79  ...     11.00      15.00      17.00
+input_num_tokens   951.0   2179.55    755.22  ...   3166.00    4344.50    4837.00
+output_num_tokens  951.0    100.18     12.02  ...    117.00     120.00     120.00
+output_num_chunks  951.0     99.19     12.02  ...    116.00     119.00     119.00
+
+[7 rows x 10 columns]
+----------------------------------------------------------------------------------------------------
