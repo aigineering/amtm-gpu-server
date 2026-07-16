@@ -11,5 +11,7 @@ Per-run reports (tables + legend) live in each run's own `README.md`.
 | [solo-gemma-26b-a4b-8k-2d44e6f25d-m3](solo-gemma-26b-a4b-8k-2d44e6f25d-m3/README.md) | solo-gemma-26b-a4b-8k | gemma-4-26b-a4b-it-awq-4bit | `2d44e6f25d` | 8 | 4.0 min | 1,166,166 / 158,511 |
 | [solo-gemma-26b-a4b-8k-kv-3e8f8c0349-m3](solo-gemma-26b-a4b-8k-kv-3e8f8c0349-m3/README.md) | solo-gemma-26b-a4b-8k-kv | gemma-4-26b-a4b-it-awq-4bit | `3e8f8c0349` | 8 | 4.0 min | 1,166,166 / 158,352 |
 | [solo-gemma-31b-16k-438916e0bd-m3](solo-gemma-31b-16k-438916e0bd-m3/README.md) | solo-gemma-31b-16k | gemma-4-31b-it-awq-4bit | `438916e0bd` | 8 | 26.3 min | 2,175,482 / 157,948 |
+| [solo-gemma-31b-16k-kv-310b2ade39-m3](solo-gemma-31b-16k-kv-310b2ade39-m3/README.md) | solo-gemma-31b-16k-kv | gemma-4-31b-it-awq-4bit | `310b2ade39` | 8 | 27.3 min | 2,175,482 / 157,922 |
 | [solo-gemma-31b-32k-kv-fef3d02089-m3](solo-gemma-31b-32k-kv-fef3d02089-m3/README.md) | solo-gemma-31b-32k-kv | gemma-4-31b-it-awq-4bit | `fef3d02089` | 8 | 52.4 min | 4,193,960 / 158,527 |
+| [solo-gemma-31b-8k-c3a010294a-m3](solo-gemma-31b-8k-c3a010294a-m3/README.md) | solo-gemma-31b-8k | gemma-4-31b-it-awq-4bit | `c3a010294a` | 8 | 16.7 min | 1,166,166 / 158,468 |
 | [solo-gemma-31b-8k-kv-e5688e0a33-m3](solo-gemma-31b-8k-kv-e5688e0a33-m3/README.md) | solo-gemma-31b-8k-kv | gemma-4-31b-it-awq-4bit | `e5688e0a33` | 8 | 17.0 min | 1,166,166 / 157,912 |
