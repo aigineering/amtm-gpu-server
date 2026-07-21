@@ -95,18 +95,77 @@
       changed_when: true
       when: epel_check.rc != 0
 
+    - name: Check whether kernel headers and development tools are installed
+      ansible.builtin.command: >-
+        rpm -q
+        kernel-devel-{{ ansible_kernel }}
+        kernel-headers-{{ ansible_kernel }}
+        gcc
+        make
+        elfutils-libelf-devel
+      register: kernel_build_deps_check
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Ensure kernel headers and development tools are installed
+      ansible.builtin.command:
+        cmd: >-
+          dnf install -y
+          kernel-devel-{{ ansible_kernel }}
+          kernel-headers-{{ ansible_kernel }}
+          gcc
+          make
+          elfutils-libelf-devel
+      register: kernel_build_deps_install
+      changed_when: true
+      when: kernel_build_deps_check.rc != 0
+
+    # 2. Blacklist Nouveau driver so it doesn't fight the NVIDIA module on boot
+    - name: Blacklist Nouveau driver in modprobe
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/blacklist-nouveau.conf
+        content: |
+          blacklist nouveau
+          options nouveau modeset=0
+        mode: '0644'
+
+    - name: Check whether NVIDIA driver module stream is enabled
+      ansible.builtin.command: dnf module list --enabled nvidia-driver
+      register: nvidia_module_stream_check
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Enable NVIDIA driver module stream
+      ansible.builtin.command:
+        cmd: dnf module enable -y nvidia-driver:latest-dkms
+      register: nvidia_module_stream_enable
+      changed_when: true
+      when: nvidia_module_stream_check.rc != 0 or 'latest-dkms' not in nvidia_module_stream_check.stdout
+
+    - name: Check whether NVIDIA driver packages are installed
+      ansible.builtin.command: rpm -q kmod-nvidia-open-dkms nvidia-driver nvidia-driver-cuda
+      register: nvidia_driver_package_check
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
     - name: Install NVIDIA kernel module (open dkms) and userspace driver
-      ansible.builtin.dnf:
-        name:
-          - "kmod-nvidia-open-dkms"
-          - "nvidia-driver"
-          - "nvidia-driver-cuda"
-        state: present
+      ansible.builtin.command:
+        cmd: dnf install -y kmod-nvidia-open-dkms nvidia-driver nvidia-driver-cuda
       register: nvidia_driver_install
+      changed_when: true
+      when: nvidia_driver_package_check.rc != 0
+
+    - name: Rebuild initramfs to omit Nouveau and include NVIDIA modules
+      ansible.builtin.command:
+        cmd: dracut --regenerate-all --force
+      when: nvidia_driver_install is defined and nvidia_driver_install.changed
 
     - name: Flag that a reboot is required to load the new kernel module
       ansible.builtin.set_fact:
-        nvidia_driver_reboot_required: "{{ nvidia_driver_install.changed }}"
+        nvidia_driver_reboot_required: "{{ nvidia_driver_install is defined and nvidia_driver_install.changed }}"
 
 - name: Report reboot requirement
   ansible.builtin.debug:
