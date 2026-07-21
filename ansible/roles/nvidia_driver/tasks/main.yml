@@ -128,7 +128,7 @@
         content: |
           blacklist nouveau
           options nouveau modeset=0
-        mode: '0644'
+        mode: "0644"
 
     - name: Check whether NVIDIA driver module stream is enabled
       ansible.builtin.command: dnf module list --enabled nvidia-driver
