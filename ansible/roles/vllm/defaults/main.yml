@@ -18,6 +18,15 @@ vllm_healthcheck_start_period: "600s"
 # inventories wire it as: vllm_api_key: "{{ vault_vllm_api_key | default('') }}".
 vllm_api_key: ""
 
+# Optional TLS — both must be set together or neither at all.
+# Absolute paths on the HOST to the TLS certificate (PEM) and private key (PEM).
+# When set, both files are bind-mounted read-only into every vLLM container and
+# passed to vLLM via --ssl-certfile / --ssl-keyfile. Healthchecks switch to HTTPS
+# automatically. Leave empty (the default) to keep plain HTTP — no behavior change.
+# See docs/vllm-configuration.md for path/permissions guidance and examples.
+vllm_tls_cert_file: ""
+vllm_tls_key_file: ""
+
 # Each entry:
 #   name                    - short identifier, used for container name and mount point
 #   model_path               - absolute path on the HOST to a full local HF-format model

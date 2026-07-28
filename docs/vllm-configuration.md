@@ -103,6 +103,82 @@ getting the model repo onto the host in the first place is out of scope for this
 See [model-tuning-and-placement.md](model-tuning-and-placement.md) for the directory
 layout the role expects and validates before every deploy.
 
+
+## TLS (HTTPS)
+
+By default every vLLM instance listens on plain HTTP. To enable TLS set **both**
+of the following variables in `group_vars/all.yml`:
+
+| Variable | Description |
+|---|---|
+| `vllm_tls_cert_file` | Absolute path on the **host** to the PEM certificate (or full chain). |
+| `vllm_tls_key_file` | Absolute path on the **host** to the PEM private key. |
+
+Both default to `""` (empty). The feature is disabled unless both are set to
+non-empty values. Setting only one is a configuration error — the playbook will
+fail immediately with a clear message before any containers are touched.
+
+### Path and permissions expectations
+
+* Both paths must be absolute and point to files already present on the host before
+  the playbook runs (the role never generates or fetches them).
+* The files are bind-mounted **read-only** into every container at `/tls/cert.pem`
+  and `/tls/key.pem`.
+* Permissions: the certificate file may be world-readable; the key file should be
+  readable only by root (`0600` or `0640`). Docker mounts with whatever permissions
+  the host file has — the `vllm` process runs as root inside the container and will
+  read it regardless.
+
+### Example group_vars snippet
+
+```yaml
+# ansible/inventories/<env>/group_vars/all.yml
+
+# TLS — leave both empty (the default) to keep plain HTTP.
+vllm_tls_cert_file: "/etc/ssl/vllm/server.crt"   # full chain PEM
+vllm_tls_key_file:  "/etc/ssl/vllm/server.key"   # private key PEM
+```
+
+The role validates that cert and key are **both present or both absent**; if only
+one is set the play fails with:
+
+```
+Partial TLS configuration: set both vllm_tls_cert_file and vllm_tls_key_file,
+or leave both empty to disable TLS. Only one was provided.
+```
+
+### Resulting vLLM invocation (with TLS enabled)
+
+When both variables are set the rendered `docker-compose.yml` includes the following
+extra mounts and CLI flags for every service:
+
+```yaml
+volumes:
+  - "/etc/ssl/vllm/server.crt:/tls/cert.pem:ro"
+  - "/etc/ssl/vllm/server.key:/tls/key.pem:ro"
+command:
+  # … existing flags …
+  - "--ssl-certfile"
+  - "/tls/cert.pem"
+  - "--ssl-keyfile"
+  - "/tls/key.pem"
+```
+
+The healthcheck also switches from `http://` to `https://` (with `-k` to allow
+self-signed certs):
+
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "curl -sfk https://localhost:<port>/health || exit 1"]
+```
+
+Clients must use HTTPS once TLS is enabled:
+
+```bash
+curl https://<host>:8001/v1/chat/completions \
+  -H "Authorization: ******" -H 'Content-Type: application/json' -d '...'
+```
+
 ## Adding a third instance / swapping a model
 
 Copy the new model's full repo onto the host, then add an entry to `vllm_instances`
