@@ -1,6 +1,9 @@
 ---
 # Rendered by the `vllm` Ansible role — do not edit by hand, changes will be
 # overwritten on the next playbook run. Edit vllm_instances in group_vars instead.
+{# Compute once at render time: TLS is active only when BOTH paths are provided. #}
+{% set tls_enabled = (vllm_tls_cert_file | default('') | length > 0) and
+                     (vllm_tls_key_file  | default('') | length > 0) %}
 services:
 {% for instance in vllm_instances %}
   vllm-{{ instance.name }}:
@@ -15,19 +18,29 @@ services:
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
 {% if vllm_api_key | default('') | length > 0 %}
-      # Requires "Authorization: Bearer <key>" on /v1/* (health/metrics stay
+      # Requires "Authorization: ******" on /v1/* (health/metrics stay
       # open, so the healthcheck below keeps working). Set via ansible-vault
       # (vault_vllm_api_key) — see docs/vllm-configuration.md.
       VLLM_API_KEY: "{{ vllm_api_key }}"
 {% endif %}
     volumes:
       - "{{ instance.model_path }}:/models/{{ instance.name }}:ro"
+{% if tls_enabled %}
+      # TLS cert and key — mounted read-only; paths come from vllm_tls_cert_file /
+      # vllm_tls_key_file in group_vars. See docs/vllm-configuration.md.
+      - "{{ vllm_tls_cert_file }}:/tls/cert.pem:ro"
+      - "{{ vllm_tls_key_file }}:/tls/key.pem:ro"
+{% endif %}
     # vLLM profiles free GPU memory at startup to size its KV cache. Two engines
     # profiling concurrently each see the other's in-flight allocations and
     # compute garbage (negative KV memory) — so instances start strictly one at
     # a time: each waits for the previous one's /health before starting.
     healthcheck:
+{% if tls_enabled %}
+      test: ["CMD-SHELL", "curl -sfk https://localhost:{{ instance.port }}/health || exit 1"]
+{% else %}
       test: ["CMD-SHELL", "curl -sf http://localhost:{{ instance.port }}/health || exit 1"]
+{% endif %}
       interval: 10s
       timeout: 5s
       retries: 3
@@ -48,6 +61,12 @@ services:
       - "{{ instance.gpu_memory_utilization }}"
       - "--max-model-len"
       - "{{ instance.max_model_len | string }}"
+{% if tls_enabled %}
+      - "--ssl-certfile"
+      - "/tls/cert.pem"
+      - "--ssl-keyfile"
+      - "/tls/key.pem"
+{% endif %}
 {# to_json, not bare quoting: args may contain double quotes (e.g. the JSON value of --limit-mm-per-prompt) #}
 {% for arg in instance.extra_args | default([]) %}
       - {{ arg | to_json }}
